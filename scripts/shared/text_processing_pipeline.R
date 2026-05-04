@@ -8,7 +8,6 @@ library(tidytext)
 library(textstem)
 
 # --- Data Loading and Preparation ---
-
 load_and_prep_humc <- function(path) {
   read_csv(path, show_col_types = FALSE) %>%
     clean_names() %>%
@@ -25,13 +24,12 @@ load_and_prep_humc <- function(path) {
 load_and_prep_hmh <- function(path) {
   read_csv(path, show_col_types = FALSE) %>%
     clean_names() %>%
-    mutate(submitted_at = parse_timestamp(timestamp)) %>%
-    filter(select_question_request_type == "Literature Search") %>%
+    filter(str_to_lower(select_question_request_type) == "literature search") %>%
     transmute(
       source_file_type = "hmh",
       source_label = "HMH shared form",
       original_id = row_number(),
-      submitted_date = as.Date(submitted_at),
+      submitted_date = as.Date(parse_timestamp(timestamp)),
       campus_affiliation = standardize_campus_name(campus_affiliation),
       research_topic = clean_blank(research_topic)
     )
@@ -41,27 +39,26 @@ load_and_prep_hmh <- function(path) {
 
 lemmatize_topics <- function(topics_df, phrases_tbl, lex_map, custom_map) {
   
-  # Normalize the text first
   topics_normalized <- topics_df %>%
     mutate(
-      # Use the new consolidated clean_text function
       research_topic_clean = clean_text(research_topic, preset = "normalize"),
       research_topic_clean = collapse_phrases(research_topic_clean, phrases_tbl),
       research_topic_clean = na_if(research_topic_clean, "")
     ) %>%
     filter(!is.na(research_topic_clean))
   
-  # Unnest, lemmatize, and clean
+  possible_cols <- c(
+    "request_id", "global_request_id", "source_file_type", "source_label", 
+    "original_id", "submitted_date", "campus_affiliation", "research_topic", 
+    "research_topic_clean", "requestor_category", "time_spent"
+  )
+  
   tidy_lemmas <- topics_normalized %>%
-    select(
-      global_request_id, source_file_type, source_label, original_id,
-      submitted_date, campus_affiliation, research_topic, research_topic_clean
-    ) %>%
+    # THE FIX: Explicitly use dplyr::select to avoid masking by MASS::select
+    dplyr::select(any_of(possible_cols)) %>%
     unnest_tokens(word, research_topic_clean) %>%
-    # This small cleaning step can stay here as it's part of tokenization
     mutate(word = str_replace_all(word, "[^a-z0-9'_-]", "")) %>%
     filter(word != "", str_detect(word, "[a-z0-9]")) %>%
-    # Join against reference maps to find the final lemma
     left_join(lex_map, by = c("word" = "token")) %>%
     mutate(
       lemma0 = coalesce(lemma_from_lex, word),
@@ -69,7 +66,6 @@ lemmatize_topics <- function(topics_df, phrases_tbl, lex_map, custom_map) {
     ) %>%
     left_join(custom_map, by = c("lemma1" = "token")) %>%
     mutate(lemma = coalesce(lemma_custom, lemma1)) %>%
-    # Remove stop words and numbers
     anti_join(tidytext::stop_words, by = c("lemma" = "word")) %>%
     filter(!str_detect(lemma, "^\\d+$"))
   
@@ -77,10 +73,7 @@ lemmatize_topics <- function(topics_df, phrases_tbl, lex_map, custom_map) {
 }
 
 # --- Candidate Phrase Generation ---
-
 generate_ngram_candidates <- function(topics_df, phrases_tbl, custom_map) {
-  
-  # Build exclusion lists from reference data
   phrases_exclude <- phrases_tbl %>%
     transmute(
       phrase_raw = str_to_lower(str_squish(phrase)),
@@ -97,15 +90,13 @@ generate_ngram_candidates <- function(topics_df, phrases_tbl, custom_map) {
   
   exclude_terms <- unique(c(phrases_exclude, custom_exclude))
   
-  # Normalize text
   phrase_candidate_tokens <- topics_df %>%
     mutate(
       research_topic_clean = clean_text(research_topic, preset = "normalize"),
       research_topic_clean = collapse_phrases(research_topic_clean, phrases_tbl)
     ) %>%
-    select(global_request_id, research_topic_clean)
+    dplyr::select(any_of(c("global_request_id", "request_id")), research_topic_clean)
   
-  # Generate bigrams
   candidate_bigrams <- phrase_candidate_tokens %>%
     unnest_tokens(ngram, research_topic_clean, token = "ngrams", n = 2) %>%
     filter(!is.na(ngram)) %>%
@@ -114,7 +105,6 @@ generate_ngram_candidates <- function(topics_df, phrases_tbl, custom_map) {
     count(ngram, sort = TRUE, name = "n") %>%
     mutate(type = "bigram")
   
-  # Generate trigrams
   candidate_trigrams <- phrase_candidate_tokens %>%
     unnest_tokens(ngram, research_topic_clean, token = "ngrams", n = 3) %>%
     filter(!is.na(ngram)) %>%
@@ -123,7 +113,6 @@ generate_ngram_candidates <- function(topics_df, phrases_tbl, custom_map) {
     count(ngram, sort = TRUE, name = "n") %>%
     mutate(type = "trigram")
   
-  # Combine and filter
   bind_rows(candidate_bigrams, candidate_trigrams) %>%
     mutate(ngram = str_to_lower(ngram)) %>%
     filter(!ngram %in% exclude_terms) %>%
