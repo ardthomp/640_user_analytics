@@ -1,0 +1,89 @@
+write_pretty_workbook(
+  tables = tables_to_export,
+  path = summary_filepath
+)
+
+read_phrases <- function(path) {
+  if (!file.exists(path)) {
+    readr::write_csv(tibble(phrase = character()), path)
+    message("Created empty phrases.csv. Add phrases and rerun.")
+  }
+  
+  readr::read_csv(
+    path,
+    col_types = cols(phrase = col_character()),
+    locale = readr::locale(encoding = "latin1")
+  ) %>%
+    mutate(
+      phrase = stringi::stri_enc_toutf8(phrase),
+      phrase = str_to_lower(str_trim(phrase))
+    ) %>%
+    filter(phrase != "") %>%
+    distinct()
+}# Removed because now sourced from shared helper files
+# source(here("scripts", "shared", "helpers.R"))
+# source(here("scripts", "shared", "text_helpers.R"))
+
+# Text helper definitions removed from this file:
+# - read_phrases()
+# - collapse_phrases()
+# - read_lex()
+# - read_custom_merges()
+# - clean_text() / old local text cleaner
+# - clean_topic_text()
+
+# Old local version kept here for reference only:
+clean_topic_text <- function(x) {
+  x %>%
+    stringr::str_to_lower() %>%
+    stringr::str_replace_all("[’`]", "'") %>%
+    stringr::str_replace_all("\\.", "") %>%
+    stringr::str_replace_all("[^a-z\\s']", " ")
+}
+
+# Old path style removed:
+if (!dir.exists(here("outputs"))) dir.create(here("outputs"))
+if (!dir.exists(here("outputs","tables"))) dir.create(here("outputs","tables"))
+if (!dir.exists(here("outputs","figures"))) dir.create(here("outputs","figures"))
+if (!dir.exists(here("data"))) dir.create(here("data"))
+
+raw_path <- here("data", "raw_data.csv")
+lex_path <- here("data", "lexicon.lex")
+phrases_path <- here("data", "phrases.csv")
+custom_merge_path <- here("data", "custom_merges.csv")
+categories_path <- here("data", "categories_long.xlsx")
+coding_path <- here("data", "lemma_coding.csv")
+out_path <- here("outputs", "out.rds")
+
+# Old run_full_analysis path style removed:
+run_full_analysis <- function() {
+  source(here("02_run_pipeline.R"))
+  source(here("03_analysis_tables.R"))
+  source(here("04_figures.R"))
+}
+
+# Old Topic normalization inside build_outputs removed:
+Topic = str_to_lower(as.character(Topic)),
+Topic = collapse_phrases(Topic, phrases_tbl),
+
+# Replaced with:
+Topic = as.character(Topic),
+Topic = clean_topic_for_normalization(Topic),
+Topic = collapse_phrases(Topic, phrases_tbl),
+
+# Old token cleaning removed:
+word = str_replace_all(word, "[^a-z'_-]", "")
+filter(word != "", word != "pre", str_detect(word, "[a-z]"))
+
+# Replaced with HMH-style number-preserving version:
+word = str_replace_all(word, "[^a-z0-9'_-]", "")
+filter(word != "", word != "pre", str_detect(word, "[a-z0-9]"))
+filter(!str_detect(word, "^\\d+$"))
+
+# Old phrase candidate cleaning removed:
+topic_clean <- out$my_data2 %>%
+  transmute(Topic = clean_topic_text(as.character(Topic)))
+
+# Replaced with:
+topic_clean <- out$my_data2 %>%
+  transmute(Topic = clean_topic_for_normalization(as.character(Topic)))

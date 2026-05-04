@@ -1,0 +1,14 @@
+# Ignore all user-specific R and RStudio files
+.Rhistory
+.RData
+.Rproj.user
+.Renviron
+
+# Ignore the entire data and outputs folders
+/data/
+/outputs/
+
+# Ignore other project files we don't need to track
+*.jpg
+*.png
+project_structure.txt
