@@ -1,35 +1,8 @@
 # scripts/shared/transformations.R
 #
-# Contains project-specific data transformation and business logic functions
-# for the hmh_user_analytics project.
-
-#' Collapse detailed requestor roles into standardized, high-level groups.
-#'
-#' This function contains the business logic for how to categorize different
-#' types of users in this specific project.
-#'
-#' @param x A character vector of requestor roles.
-#' @return A character vector of collapsed group names.
-collapse_requestor_group <- function(x) {
-  # This is a perfect example of project-specific business logic.
-  # Keeping it in a dedicated file makes it easy to find and update.
-  dplyr::case_when(
-    x %in% c("Physician", "Resident", "Fellow") ~ "Physician",
-    x %in% c("Nurse", "Nurse Practitioner", "Nurse Practitioner/ PA") ~ "Nursing",
-    x %in% c("Allied Health Professional", "Physical Therapist") ~ "Allied Health",
-    x == "Consumer" ~ "Consumer",
-    TRUE ~ "Other"
-  )
-}
-
-# (Add this function to the end of the file)
+# Contains project-specific data transformation and business logic functions.
 
 #' Standardize campus names from various sources into a consistent set.
-#'
-#' This function contains the business logic for cleaning up campus affiliation data.
-#'
-#' @param x A character vector of campus names.
-#' @return A character vector of standardized campus names.
 standardize_campus_name <- function(x) {
   x_clean <- stringr::str_squish(as.character(x))
   x_lower <- stringr::str_to_lower(x_clean)
@@ -43,8 +16,6 @@ standardize_campus_name <- function(x) {
     TRUE ~ x_clean
   )
 }
-
-# (Add these functions to the end of the file)
 
 #' Standardize requestor names, collapsing detailed roles into broader categories.
 standardize_requestor_name <- function(x) {
@@ -106,4 +77,3 @@ make_requestor_string <- function(attending, med_ed, nurse, other_provider, comm
   if (length(requestors) == 0) return(NA_character_)
   paste(requestors, collapse = ", ")
 }
-
