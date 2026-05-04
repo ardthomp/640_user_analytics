@@ -4,13 +4,12 @@
 # combined HUMC/HMH analysis.
 
 library(tidyverse)
-library(janitor)
 library(lubridate)
 library(scales)
 library(gt)
 
 # --- Data Loading and Wrangling Functions ---
-
+# (load_and_process_humc and load_and_process_hmh functions are unchanged)
 load_and_process_humc <- function(path, analysis_years) {
   read_csv(path, show_col_types = FALSE) %>%
     clean_names() %>%
@@ -76,52 +75,76 @@ combine_and_finalize_data <- function(humc_df, hmh_df) {
 }
 
 # --- Analysis and Table Generation ---
-
 generate_summary_tables <- function(combined_df) {
+  # (This function is unchanged)
   list(
-    "Requests by Campus" = count(combined_df, campus_affiliation_clean, name = "n_requests", sort = TRUE),
-    "Requests by Requestor" = count(combined_df, requestor_category, name = "n_requests", sort = TRUE),
-    "Requests by Year" = count(combined_df, year, name = "n_requests", sort = TRUE),
+    "Requests by Source" = count(combined_df, source_label, name = "n_requests", sort = TRUE) %>% mutate(prop = n_requests / sum(n_requests)),
+    "Requests by Campus" = count(combined_df, campus_affiliation_clean, name = "n_requests", sort = TRUE) %>% mutate(prop = n_requests / sum(n_requests)),
+    "Requests by Requestor" = count(combined_df, requestor_category, name = "n_requests", sort = TRUE) %>% mutate(prop = n_requests / sum(n_requests)),
+    "Requests by Year" = count(combined_df, year, name = "n_requests", sort = TRUE) %>% mutate(prop = n_requests / sum(n_requests)),
     "Requests by Month Total" = count(combined_df, year_month, name = "n_requests"),
     "Requests by Weekday" = count(combined_df, weekday, name = "n_requests"),
-    "Requests by Hour" = count(combined_df, hour, name = "n_requests"),
-    "Searches by Year" = combined_df %>%
-      group_by(year) %>%
-      summarize(
-        n_requests = n(),
-        mean_n_searches = mean(n_searches, na.rm = TRUE),
-        median_n_searches = median(n_searches, na.rm = TRUE),
-        .groups = "drop"
+    "Requests by Hour" = count(combined_df, hour, name = "n_requests") %>% arrange(hour),
+    "Time Spent Counts" = count(combined_df, time_spent, name = "n_requests", sort = TRUE) %>% mutate(prop = n_requests / sum(n_requests)),
+    "Searches by Year" = combined_df %>% group_by(year) %>% summarize(n_requests = n(), mean_n_searches = mean(n_searches, na.rm = TRUE), median_n_searches = median(n_searches, na.rm = TRUE), max_n_searches = safe_max_numeric(n_searches), .groups = "drop"),
+    "Searches by Campus" = combined_df %>% group_by(campus_affiliation_clean) %>% summarize(n_requests = n(), mean_searches = mean(n_searches, na.rm = TRUE), median_searches = median(n_searches, na.rm = TRUE), max_searches = safe_max_numeric(n_searches), .groups = "drop") %>% arrange(desc(n_requests))
+  )
+}
+
+# (This is the new, complete version of this function)
+generate_purpose_tables <- function(combined_df) {
+  if (sum(!is.na(combined_df$purpose)) == 0) return(list())
+  
+  tidy_purposes <- combined_df %>%
+    filter(!is.na(purpose), purpose != "") %>%
+    separate_rows(purpose, sep = ",[ ]*") %>% # Handle comma with or without space
+    mutate(
+      purpose_cleaned = str_to_lower(str_squish(purpose)),
+      purpose_category = case_when(
+        purpose_cleaned == "patient care" ~ "Patient Care",
+        purpose_cleaned == "research" ~ "Research",
+        purpose_cleaned == "lecture / presentation" ~ "Lecture / Presentation",
+        purpose_cleaned == "publication" ~ "Publication",
+        purpose_cleaned == "evidence-based practice" ~ "Evidence-Based Practice",
+        TRUE ~ str_to_title(purpose_cleaned)
+      ),
+      purpose_other_detail = if_else(
+        !purpose_category %in% c("Patient Care", "Research", "Lecture / Presentation", "Publication", "Evidence-Based Practice"),
+        str_trim(purpose),
+        NA_character_
       )
-    # Add other summary tables here as needed
+    )
+  
+  list(
+    "Requests by Purpose" = count(tidy_purposes, purpose_category, name = "n_selections", sort = TRUE) %>% mutate(prop = n_selections / sum(n_selections)),
+    "Purpose by Campus" = count(tidy_purposes, campus_affiliation_clean, purpose_category, name = "n_selections") %>% arrange(campus_affiliation_clean, desc(n_selections)),
+    "Purpose by Requestor" = count(tidy_purposes, requestor_category, purpose_category, name = "n_selections") %>% arrange(requestor_category, desc(n_selections)),
+    "Other Purpose Details" = tidy_purposes %>% filter(!is.na(purpose_other_detail)) %>% count(purpose_other_detail, name = "n", sort = TRUE)
   )
 }
 
 # --- Plotting Functions ---
-
-generate_plots <- function(combined_df, figures_dir) {
-  
-  # Plot 1: Requests over time
+# (generate_and_save_plots function is unchanged)
+generate_and_save_plots <- function(combined_df, figures_dir) {
   p_over_time <- combined_df %>%
     count(year_month, source_label, name = "n_requests") %>%
     ggplot(aes(x = year_month, y = n_requests, color = source_label, group = source_label)) +
-    geom_line(linewidth = 1.2) + geom_point(size = 2.5) +
-    scale_y_continuous(limits = c(0, NA)) +
-    labs(title = "Literature Search Requests Over Time", x = "Month", y = "Number of Requests", color = "Source") +
+    geom_line(linewidth = 1.1) + geom_point(size = 2) +
+    scale_y_continuous(limits = c(0, NA), breaks = pretty_breaks()) +
+    labs(title = "Literature Search Requests Over Time by Source", x = "Month", y = "Number of Requests", color = "Source") +
     theme_minimal()
+  ggsave(file.path(figures_dir, "requests_over_time_by_source.png"), p_over_time, width = 11, height = 6, dpi = 300)
   
-  ggsave(file.path(figures_dir, "combined_requests_over_time.png"), p_over_time, width = 12, height = 7, dpi = 300)
-  
-  # Plot 2: Requests by campus
   p_by_campus <- combined_df %>%
     count(campus_affiliation_clean, name = "n_requests") %>%
-    filter(!is.na(campus_affiliation_clean)) %>%
+    filter(!is.na(campus_affiliation_clean), campus_affiliation_clean != "Unknown/Not specified") %>%
     ggplot(aes(x = reorder(campus_affiliation_clean, n_requests), y = n_requests)) +
-    geom_col() + coord_flip() +
-    labs(title = "Literature Search Requests by Campus", x = "Campus", y = "Number of Requests") +
+    geom_col(fill = "#0072B2") + coord_flip() +
+    labs(title = "Total Literature Search Requests by Campus", x = NULL, y = "Number of Requests") +
     theme_minimal()
+  ggsave(file.path(figures_dir, "requests_by_campus.png"), p_by_campus, width = 9, height = 6, dpi = 300)
   
-  ggsave(file.path(figures_dir, "combined_requests_by_campus.png"), p_by_campus, width = 9, height = 6, dpi = 300)
+  cat("Figures saved to:", figures_dir, "\n")
+}
   
   # Add other plotting code here, converting each plot into a small, self-contained block
-}
