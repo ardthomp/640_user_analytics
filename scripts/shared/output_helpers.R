@@ -29,6 +29,27 @@ archive_and_write <- function(writer_func, current_path, ...) {
   invisible(current_path)
 }
 
+# Clear output folder (overwrite strategy) -------------------------
+
+clear_output_folder <- function(folder, pattern = NULL) {
+  if (!dir.exists(folder)) {
+    dir.create(folder, recursive = TRUE)
+    return(invisible(NULL))
+  }
+  
+  files <- list.files(folder, full.names = TRUE)
+  
+  if (!is.null(pattern)) {
+    files <- files[stringr::str_detect(basename(files), pattern)]
+  }
+  
+  if (length(files) > 0) {
+    file.remove(files)
+  }
+  
+  invisible(NULL)
+}
+
 # Your Existing Helper Functions (Unchanged)
 repair_utf8 <- function(x) {
   x <- as.character(x)
