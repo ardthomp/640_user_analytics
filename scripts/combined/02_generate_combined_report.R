@@ -1,7 +1,7 @@
-# 02_combined_analysis.R
+# 02_generate_combined_report.R
 #
-# Master script for analyzing and summarizing combined literature search data
-# from both HUMC and HMH sources.
+# Loads the pre-processed combined dataset and generates the final
+# summary report, tables, and figures for the analysis years.
 
 # --- 1. Setup ---
 library(tidyverse)
@@ -11,78 +11,64 @@ library(lubridate)
 # Source all shared and pipeline-specific helpers
 source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "helpers.R"))
-source(here("scripts", "shared", "transformations.R"))
 source(here("scripts", "shared", "output_helpers.R"))
-source(here("scripts", "shared", "combined_analysis_pipeline.R")) # Our new pipeline functions
+source(here("scripts", "shared", "combined_analysis_pipeline.R")) # Our new functions
 
 # Define output paths
 paths <- make_output_paths("combined")
-csv_dir <- paths$csv_dir
-figures_dir <- paths$figures_dir
-formatted_tables_dir <- paths$formatted_tables_dir
 
-# --- 2. Dynamic Analysis Period ---
+# --- 2. Load Pre-Processed Data ---
 
-# Determine the analysis years automatically based on the latest data.
-# This will analyze the most recent full year and the current year-to-date.
-latest_year <- year(Sys.Date())
-analysis_years <- c(latest_year - 1, latest_year) # e.g., c(2025, 2026)
+# Load the final data object created by the '01_build' script.
+# This completely replaces all the old data loading and cleaning steps.
+analysis_data <- readRDS(here("data", "processed", "combined_analysis_data.rds"))
+combined_dat <- analysis_data$all_topics
+tidy_lemmas <- analysis_data$all_lemmas
 
+# Determine analysis years dynamically from the data
+analysis_years <- unique(combined_dat$year)
+
+cat("--- Report Generation Started ---\n")
+cat("Loaded pre-processed data with", nrow(combined_dat), "records.\n")
 cat("Analyzing data for years:", paste(analysis_years, collapse = ", "), "\n")
 
-# --- 3. Load and Process Data ---
+# --- 3. Generate Analysis Outputs ---
 
-# Load and process each data source using our new pipeline functions
-humc_dat <- load_and_process_humc(humc_path, analysis_years)
-hmh_dat  <- load_and_process_hmh(hmh_path, analysis_years)
-
-# Combine into a single, clean dataset
-combined_dat <- combine_and_finalize_data(humc_dat, hmh_dat)
-
-# --- 4. Generate Analysis Outputs ---
-
-# Create a list of all summary tables
+# Create a list of all summary tables using our new helper functions
 summary_tables <- generate_summary_tables(combined_dat)
+purpose_tables <- generate_purpose_tables(combined_dat)
 
-# Generate all plots
-generate_plots(combined_dat, figures_dir)
+# Generate lemma tables
+lemma_tables <- list(
+  "Top Lemmas" = tidy_lemmas %>% count(lemma, sort = TRUE, name = "n") %>% head(500),
+  "All Lemmas" = tidy_lemmas %>% distinct(lemma) %>% arrange(lemma)
+)
 
-# Generate a formatted HTML table for campus requests
-gt_requests_by_campus <- summary_tables$`Requests by Campus` %>%
-  mutate(prop = n_requests / sum(n_requests)) %>%
-  gt::gt() %>%
-  gt::tab_header(title = "Literature Search Requests by Campus") %>%
-  gt::fmt_percent(columns = prop, decimals = 1)
+# Combine all tables into one list for export
+all_tables_to_export <- c(summary_tables, purpose_tables, lemma_tables)
+all_tables_to_export <- all_tables_to_export[map_lgl(all_tables_to_export, ~ is.data.frame(.x) && nrow(.x) > 0)]
 
-# --- 5. Save All Outputs ---
+# Generate and save all plots
+generate_and_save_plots(combined_dat, paths$figures_dir)
+
+# --- 4. Save All Outputs ---
 
 # Save all summary tables to individual, archived CSVs
 purrr::iwalk(
-  summary_tables,
+  all_tables_to_export,
   ~ write_archived_csv(
     df = .x,
     filename = janitor::make_clean_names(.y),
-    csv_dir = csv_dir
+    csv_dir = paths$csv_dir
   )
 )
 
-# Save the formatted HTML table, archived automatically
-gtsave(
-  gt_requests_by_campus,
-  file.path(formatted_tables_dir, "combined_requests_by_campus.html")
-)
-# Note: gtsave doesn't return a value that can be piped into our archiver.
-# A more advanced solution could wrap gtsave, but for now, this is fine.
-# Manual archiving for this one file might be needed if versions are critical.
-
 # Save a single, consolidated Excel workbook with all tables
 write_archived_workbook(
-  tables = summary_tables,
+  tables = all_tables_to_export,
   path = file.path(paths$output_dir, "summary_report.xlsx")
 )
 
-# --- 6. Console Summary ---
-cat("\nCombined analysis complete.\n")
-cat("Years analyzed:", paste(analysis_years, collapse = ", "), "\n")
-cat("Total requests found:", nrow(combined_dat), "\n")
-cat("Outputs written to:", paths$output_dir, "\n")
+# --- 5. Console Summary ---
+cat("--- Report Generation Complete ---\n")
+cat("Summary workbook, CSVs, and figures written to:", paths$output_dir, "\n")
