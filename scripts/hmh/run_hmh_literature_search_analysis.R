@@ -2,8 +2,7 @@
 #
 # HMH literature search request analysis.
 #
-# Main change from the earlier GitHub version:
-#   This script now overwrites the latest outputs instead of archiving every run.
+# This script overwrites the latest outputs instead of archiving every run.
 #
 # Outputs:
 #   outputs/hmh/literature_searches/csv/
@@ -77,7 +76,6 @@ collapse_requestor_group <- function(x) {
   )
 }
 
-# Fallback in case parse_timestamp is not already supplied by helpers.R
 if (!exists("parse_timestamp")) {
   parse_timestamp <- function(x) {
     dplyr::coalesce(
@@ -86,6 +84,14 @@ if (!exists("parse_timestamp")) {
       suppressWarnings(lubridate::ymd_hms(x)),
       suppressWarnings(lubridate::ymd_hm(x))
     )
+  }
+}
+
+if (!exists("clean_blank")) {
+  clean_blank <- function(x) {
+    x <- stringr::str_squish(as.character(x))
+    x[x %in% c("", "NA", "N/A", "NULL", "null", "n/a")] <- NA_character_
+    x
   }
 }
 
@@ -118,19 +124,19 @@ dat <- raw %>%
       month_num %in% c(6, 7, 8) ~ "Summer",
       TRUE ~ "Fall"
     ),
-    requestor_category = na_if(str_trim(as.character(who_requested_this_information)), ""),
+    requestor_category = clean_blank(who_requested_this_information),
     requestor_group = collapse_requestor_group(requestor_category),
-    request_received = na_if(str_trim(as.character(how_was_the_question_request_received)), ""),
-    campus_affiliation = na_if(str_trim(as.character(campus_affiliation)), ""),
-    research_topic = na_if(str_trim(as.character(research_topic)), ""),
-    time_spent = na_if(str_trim(as.character(time_spent_on_searches)), ""),
-    purpose = na_if(str_trim(as.character(purpose_of_request)), ""),
+    request_received = clean_blank(how_was_the_question_request_received),
+    campus_affiliation = clean_blank(campus_affiliation),
+    research_topic = clean_blank(research_topic),
+    time_spent = clean_blank(time_spent_on_searches),
+    purpose = clean_blank(purpose_of_request),
     n_searches = suppressWarnings(as.numeric(number_of_literature_searches))
   ) %>%
   filter(!is.na(weekday)) %>%
   filter(requestor_group != "Consumer" | is.na(requestor_group))
 
-# Demand/utilization tables ------------------------------------------------
+# Demand / utilization tables ----------------------------------------------
 
 requests_per_month <- dat %>%
   count(year_month, name = "n_requests")
@@ -142,7 +148,8 @@ requests_by_season <- dat %>%
   count(season, name = "n_requests")
 
 requests_by_hour <- dat %>%
-  count(hour, name = "n_requests")
+  count(hour, name = "n_requests") %>%
+  arrange(hour)
 
 requests_by_requestor <- dat %>%
   count(requestor_group, sort = TRUE, name = "n_requests") %>%
@@ -225,7 +232,7 @@ if (sum(!is.na(dat$purpose)) > 0) {
   other_purpose_list <- tibble()
 }
 
-# Workload/search tables ---------------------------------------------------
+# Workload / search tables -------------------------------------------------
 
 searches_summary <- dat %>%
   summarize(
@@ -309,7 +316,7 @@ lex_map <- read_lex(lex_path)
 
 dat_text <- dat %>%
   mutate(
-    research_topic_clean = clean_text(research_topic, "normalize"),
+    research_topic_clean = clean_topic_for_normalization(research_topic),
     research_topic_clean = collapse_phrases(research_topic_clean, phrases_tbl),
     research_topic_clean = na_if(research_topic_clean, "")
   )
@@ -558,11 +565,11 @@ if (nrow(requestor_by_purpose) > 0) {
 
 if (nrow(top_requestor_lemmas) > 0) {
   p_top_lemmas_faceted <- top_requestor_lemmas %>%
-    mutate(lemma = reorder_within(lemma, tf_idf, requestor_group)) %>%
+    mutate(lemma = tidytext::reorder_within(lemma, tf_idf, requestor_group)) %>%
     ggplot(aes(x = lemma, y = tf_idf, fill = requestor_group)) +
     geom_col(show.legend = FALSE) +
     facet_wrap(~ requestor_group, scales = "free_y", ncol = 3) +
-    scale_x_reordered() +
+    tidytext::scale_x_reordered() +
     coord_flip() +
     labs(
       title = "Most Distinctive Terms by Requestor Category (TF-IDF)",
