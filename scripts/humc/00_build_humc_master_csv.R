@@ -9,8 +9,8 @@
 #
 #     data/processed/humc.csv
 #
-# This version also avoids archive sprawl. It overwrites the latest check files
-# in data/processed instead of creating timestamped copies on every run.
+# This version overwrites the latest check files instead of creating
+# timestamped archive copies on every run.
 
 # Setup --------------------------------------------------------------------
 
