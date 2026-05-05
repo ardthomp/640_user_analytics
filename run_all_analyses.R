@@ -17,7 +17,26 @@
 
 # Setup --------------------------------------------------------------------
 
-library(here)
+libs <- c(
+  "tidyverse",
+  "here",
+  "janitor",
+  "lubridate",
+  "readxl",
+  "openxlsx"
+)
+
+missing <- libs[!sapply(libs, requireNamespace, quietly = TRUE)]
+
+if (length(missing) > 0) {
+  stop(
+    "Missing packages: ",
+    paste(missing, collapse = ", "),
+    "\nRun renv::restore()"
+  )
+}
+
+invisible(lapply(libs, library, character.only = TRUE))
 
 # Run switches --------------------------------------------------------------
 
@@ -47,7 +66,7 @@ run_script <- function(path) {
   cat("Running:", path, "\n")
   cat("=================================================================\n\n")
 
-  source(full_path, local = new.env(parent = globalenv()))
+  source(full_path, local = globalenv())
 
   cat("\nFinished:", path, "\n")
 }
@@ -97,6 +116,14 @@ if (run_combined_build) {
 if (run_combined_report) {
   run_script("scripts/combined/02_generate_combined_report.R")
 }
+
+# Save session info --------------------------------------------------------
+
+dir.create(here::here("outputs"), showWarnings = FALSE, recursive = TRUE)
+
+sink(here::here("outputs", "session_info.txt"))
+sessionInfo()
+sink()
 
 # Done ---------------------------------------------------------------------
 
