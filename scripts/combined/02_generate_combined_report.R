@@ -5,7 +5,7 @@
 # Purpose:
 #   1. Load the RDS object created by 01_build_combined_dataset.R.
 #   2. Recreate the utilization, purpose, workload, citation, and lemma tables.
-#   3. Export CSVs, an Excel workbook, selected HTML tables, and figures.
+#   3. Export figures, selected HTML tables, one Excel workbook, and optional CSVs.
 #
 # Run after:
 #   source("scripts/combined/01_build_combined_dataset.R")
@@ -54,12 +54,33 @@ formatted_tables_dir <- paths$formatted_tables_dir
 
 combined_rds_path <- here("data", "processed", "combined_analysis_data.rds")
 
+# Export settings -----------------------------------------------------------
+
+export_csvs <- FALSE
+export_workbook <- TRUE
+
+# Check input ---------------------------------------------------------------
+
 if (!file.exists(combined_rds_path)) {
   stop(
     "Could not find data/processed/combined_analysis_data.rds. ",
     "Run scripts/combined/01_build_combined_dataset.R first."
   )
 }
+
+# Clear outputs -------------------------------------------------------------
+
+if (export_csvs) {
+  clear_output_folder(csv_dir, "\\.(csv|rds)$")
+}
+
+clear_output_folder(figures_dir, "\\.(png|jpg|jpeg|pdf)$")
+clear_output_folder(formatted_tables_dir, "\\.html$")
+clear_output_folder(output_dir, "^summary_report_.*\\.xlsx$|^combined_summary_report\\.xlsx$")
+
+# Fixed output path (no timestamps) -----------------------------------------
+
+summary_filepath <- file.path(output_dir, "combined_summary_report.xlsx")
 
 # Load built data -----------------------------------------------------------
 
@@ -70,10 +91,6 @@ tidy_purposes <- analysis_data$tidy_purposes
 tidy_lemmas_all <- analysis_data$tidy_lemmas_all
 phrase_lemma_candidates <- analysis_data$phrase_lemma_candidates
 all_research_topics_full <- analysis_data$all_research_topics_full
-
-run_timestamp <- format(Sys.time(), "%Y_%m_%d-%H-%M-%S")
-summary_filename <- paste0("summary_report_", run_timestamp, ".xlsx")
-summary_filepath <- file.path(output_dir, summary_filename)
 
 # Data checks ---------------------------------------------------------------
 
@@ -607,17 +624,41 @@ if (nrow(requests_by_purpose) > 0) {
   )
 }
 
-# Excel workbook ------------------------------------------------------------
+# Save outputs --------------------------------------------------------------
 
-write_archived_workbook(
-  tables = tables_to_export_clean,
-  path = summary_filepath
-)
+if (export_csvs) {
+  clear_output_folder(csv_dir, "\\.(csv|rds)$")
+  
+  purrr::iwalk(
+    tables_to_export_clean,
+    ~ write_pretty_csv(
+      df = .x,
+      filename = janitor::make_clean_names(.y),
+      csv_dir = csv_dir
+    )
+  )
+}
+
+if (export_workbook) {
+  write_pretty_workbook(
+    tables = tables_to_export_clean,
+    path = summary_filepath
+  )
+}
 
 # Console summary ----------------------------------------------------------
 
 cat("\n--- Combined Report Complete ---\n")
-cat("Newest summary workbook written to:\n", summary_filepath, "\n")
-cat("CSV files written to:\n", csv_dir, "\n")
+
+if (export_workbook) {
+  cat("Summary workbook written to:\n", summary_filepath, "\n")
+}
+
+if (export_csvs) {
+  cat("CSV files written to:\n", csv_dir, "\n")
+} else {
+  cat("CSV export skipped. Set export_csvs <- TRUE to write CSVs.\n")
+}
+
 cat("Figures written to:\n", figures_dir, "\n")
 cat("Formatted HTML tables written to:\n", formatted_tables_dir, "\n")
