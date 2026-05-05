@@ -1,3 +1,4 @@
+# Line endings normalized for GitHub display
 # scripts/hmh/run_hmh_article_request_analysis.R
 #
 # HMH article/chapter request analysis.

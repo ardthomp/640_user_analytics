@@ -1,3 +1,4 @@
+# Line endings normalized for GitHub display
 # scripts/humc/00_build_humc_master_csv.R
 #
 # Build comprehensive HUMC legacy search log.

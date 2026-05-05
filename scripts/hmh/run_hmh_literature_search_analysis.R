@@ -1,3 +1,4 @@
+# Line endings normalized for GitHub display
 # scripts/hmh/run_hmh_literature_search_analysis.R
 #
 # HMH literature search request analysis.
