@@ -6,12 +6,12 @@ End-to-end analytics pipeline for hospital library services, combining structure
 
 ## Overview
 
-This project analyzes literature search and article request activity across Hackensack Meridian Health (HMH), with a focus on Hackensack University Medical Center (HUMC) and system-wide usage patterns.
+This project analyzes literature search and article request activity across a large hospital network, with a focus on its flagship campus and system-wide usage patterns.
 
 The pipeline:
 
-- Combines multi-year HUMC legacy logs (2013–2025)
-- Integrates HMH shared-form data (2025–present)
+- Combines multi-year flagship legacy logs (2013–2025)
+- Integrates network shared-form data (2025–present)
 - Standardizes request metadata (date, campus, requestor, purpose)
 - Processes research topics using text normalization and lemmatization
 - Generates summary tables, figures, and a combined report
