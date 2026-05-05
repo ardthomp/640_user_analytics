@@ -1,14 +1,24 @@
-# Ignore all user-specific R and RStudio files
+# OS files
+.DS_Store
+
+# R / RStudio
 .Rhistory
 .RData
-.Rproj.user
-.Renviron
+.Rproj.user/
 
-# Ignore the entire data and outputs folders
-/data/
-/outputs/
+# Do not track any data
+data/
 
-# Ignore other project files we don't need to track
-*.jpg
+# Do not track generated outputs
+outputs/
+
+# Common generated analysis files
+*.rds
+*.csv
+*.xlsx
+*.xls
 *.png
-project_structure.txt
+*.jpg
+*.jpeg
+*.pdf
+*.html
