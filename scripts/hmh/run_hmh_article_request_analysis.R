@@ -2,8 +2,7 @@
 #
 # HMH article/chapter request analysis.
 #
-# Main change from the earlier GitHub version:
-#   This script now overwrites the latest outputs instead of archiving every run.
+# This script overwrites the latest outputs instead of archiving every run.
 #
 # Outputs:
 #   outputs/hmh/article_requests/csv/
@@ -43,6 +42,25 @@ summary_filepath <- file.path(paths$output_dir, "hmh_article_request_summary.xls
 
 # Local helpers ------------------------------------------------------------
 
+if (!exists("clean_blank")) {
+  clean_blank <- function(x) {
+    x <- stringr::str_squish(as.character(x))
+    x[x %in% c("", "NA", "N/A", "NULL", "null", "n/a")] <- NA_character_
+    x
+  }
+}
+
+if (!exists("parse_timestamp")) {
+  parse_timestamp <- function(x) {
+    dplyr::coalesce(
+      suppressWarnings(lubridate::mdy_hms(x)),
+      suppressWarnings(lubridate::mdy_hm(x)),
+      suppressWarnings(lubridate::ymd_hms(x)),
+      suppressWarnings(lubridate::ymd_hm(x))
+    )
+  }
+}
+
 collapse_requestor_role <- function(x) {
   x_clean <- str_to_lower(str_squish(as.character(x)))
 
@@ -70,17 +88,6 @@ classify_article_source <- function(x) {
 clean_num_na <- function(x) {
   x <- clean_blank(as.character(x))
   readr::parse_number(x)
-}
-
-if (!exists("parse_timestamp")) {
-  parse_timestamp <- function(x) {
-    dplyr::coalesce(
-      suppressWarnings(lubridate::mdy_hms(x)),
-      suppressWarnings(lubridate::mdy_hm(x)),
-      suppressWarnings(lubridate::ymd_hms(x)),
-      suppressWarnings(lubridate::ymd_hm(x))
-    )
-  }
 }
 
 # Load and process data ----------------------------------------------------
