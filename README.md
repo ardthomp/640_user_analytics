@@ -132,7 +132,6 @@ This project uses `renv` for package reproducibility. To restore the package env
 
 ```r
 renv::restore()
-```
 
 The main package groups used in the analysis are:
 
