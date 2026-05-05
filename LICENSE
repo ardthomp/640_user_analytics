@@ -2,7 +2,20 @@ Copyright (c) 2026 Andrea Thompson
 
 All rights reserved.
 
-This repository and its contents are provided for viewing purposes only.
-No part of this code, data, or documentation may be copied, modified,
-distributed, or used for commercial or non-commercial purposes without
-explicit written permission from the author.
+This repository contains original code, analytic workflows, and derived outputs
+developed for hospital library analytics and research purposes.
+
+The contents of this repository are provided for viewing and educational purposes only.
+No part of this code, methodology, or documentation may be copied, reproduced,
+modified, distributed, or used in derivative works without explicit prior written
+permission from the author.
+
+This repository does not contain protected health information (PHI). Any data used
+in this project have been de-identified, aggregated, or simulated for analysis.
+However, the analytic structures, transformations, and workflows are considered
+original intellectual work and are not licensed for reuse.
+
+Use of this repository does not grant permission to apply these methods within
+institutional, clinical, or commercial environments without authorization.
+
+For permission requests, please contact the author.
