@@ -124,6 +124,8 @@ OOutputs include:
 - Category-level summaries  
 - Phrase/lemma candidates for iterative refinement
 
+---
+
 ## Package environment
 
 This project uses `renv` for package reproducibility. To restore the package environment, run:
