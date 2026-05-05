@@ -114,6 +114,7 @@ Improve requestor classification coverage
 Expand phrase dictionary for better topic grouping
 Add longitudinal trend analysis across HUMC and HMH
 Improve visualization styling for presentation use
+
 ## License
 
 All rights reserved. This project is provided for viewing purposes only.
