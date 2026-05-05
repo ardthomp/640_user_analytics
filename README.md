@@ -1,6 +1,6 @@
 # Hospital Library User Analytics
 
-This project analyzes literature search and article request activity across Hackensack Meridian Health (HMH), with a focus on Hackensack University Medical Center (HUMC) and system-wide usage patterns.
+This project analyzes literature search and article request activity across a large hospital network, with a focus on its flagship campus and system-wide usage patterns.
 
 The goal is to understand demand, workload, and research topics using structured logs and text analysis (lemmatization + categorization).
 
@@ -50,12 +50,13 @@ data/
 outputs/
   humc/
   combined/
+```
 
 ---
 
 ## Overview
 
-How to Run
+### How to Run
 
 From the project root in R:
 
@@ -103,19 +104,34 @@ Data files are not tracked in Git (see .gitignore)
 Some legacy logs contain inconsistent formatting and missing values
 Requestor categories are standardized but raw fields may be incomplete
 “Unknown/Not specified” reflects missing or unmapped values
-Recent Updates
+
+---
+
+## Recent Updates
 Refactored helper functions and standardized pipelines
 Simplified output system (removed archived CSV workflow)
 Improved requestor classification and auditability
 Rebuilt combined dataset and reporting workflow
 Cleaned repository (removed OS files, normalized line endings)
-Future Improvements
+
+---
+
+## Future Improvements
 Improve requestor classification coverage
 Expand phrase dictionary for better topic grouping
 Add longitudinal trend analysis across HUMC + HMH
 Improve visualization styling for presentation use
 
 ---
+
+## License
+
+All rights reserved. This repository is provided for viewing and educational purposes only.
+
+It contains original analytic workflows developed for hospital library data analysis.  
+No reuse, distribution, or derivative use is permitted without prior written permission.
+
+See the LICENSE file for full terms.
 
 ## Author
 
