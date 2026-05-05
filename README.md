@@ -1,195 +1,88 @@
-# Hospital Library User Analytics
+# User Analytics Project
 
-End-to-end analytics pipeline for hospital library services, combining structured usage data with text mining to evaluate demand, workload, and research trends.
-
----
-
-## Overview
-
-This project builds a full analytics pipeline to evaluate hospital library service utilization, combining structured request data with natural language processing of research topics.
-
-The workflow integrates legacy and modern data sources to:
-
-- Analyze request volume and trends over time  
-- Compare usage across campuses and requestor groups  
-- Examine research topics using text normalization and lemmatization  
-- Generate reproducible reports for operational and strategic insights  
+This project analyzes hospital library user requests across HUMC (Hackensack University Medical Center), HMH, and combined datasets. The goal is to understand request patterns, workload, and research topics using reproducible data pipelines.
 
 ---
 
-## Key Features
+## Project overview
 
-- Multi-source data integration (HUMC legacy logs + HMH shared forms)  
-- End-to-end reproducible pipeline in R  
-- Advanced text processing (cleaning, phrase collapsing, lemmatization)  
-- NLP-based topic analysis (lemma counts, TF-IDF, category mapping)  
-- Purpose and requestor classification with auditability  
-- Automated reporting (Excel workbooks, figures, HTML tables)  
+The analysis focuses on:
 
----
-
-## Project Pipeline
-
-1. Build HUMC master dataset from legacy logs (2013–2025)  
-2. Normalize and analyze HUMC data  
-3. Process HMH literature search and article request data (2025–present)  
-4. Combine datasets into a unified structure  
-5. Generate tables, figures, and summary reports  
-
----
-
-## Project Structure
-
-
-scripts/
-humc/
-00_build_humc_master_csv.R
-01_build_analysis_object.R
-02_generate_tables.R
-03_generate_figures.R
-
-hmh/
-run_hmh_literature_search_analysis.R
-run_hmh_article_request_analysis.R
-
-combined/
-01_build_combined_dataset.R
-02_generate_combined_report.R
-
-shared/
-helpers.R
-text_helpers.R
-output_helpers.R
-reference_data_loaders.R
-paths.R
-
-data/
-raw/ # original files (not tracked)
-processed/ # cleaned datasets
-
-outputs/
-humc/
-combined/
-
-
----
-
-## How to Run
-
-From the project root in R:
-
-```r
-setwd("path/to/thompson_user_analytics")
-source("run_all_analyses.R")
-
-This runs the full pipeline:
-
-Build HUMC dataset
-Create HUMC analysis object
-Generate HUMC tables and figures
-Run HMH analyses
-Build combined dataset
-Generate combined report
-Key Outputs
-
-HUMC report
-outputs/humc/humc_summary_report.xlsx
-
-Combined report
-outputs/combined/combined_summary_report.xlsx
-
-Figures
-outputs/*/figures/
-
-Formatted tables (HTML)
-outputs/*/formatted_tables/
-
-Text Analysis Pipeline
-
-Research topics are processed using:
-
-Text cleaning (encoding fixes, punctuation normalization)
-Phrase collapsing using a custom phrase dictionary
-Lemmatization:
-BioLemmatizer lexicon
-fallback: textstem
-custom overrides (custom_merges.csv)
-Stop word removal
-Category mapping (categories_long.xlsx)
+- Literature search requests
+- Article/chapter requests
+- Research topic text analysis (lemmatization and categorization)
+- Workload and usage trends across time, requestor groups, and purposes
 
 Outputs include:
 
 - Lemma frequency counts  
 - TF-IDF comparisons across groups  
 - Category-level summaries  
-- Phrase/lemma candidates for iterative refinement
+- Phrase/lemma candidates for iterative refinement  
 
 ---
 
-## Package environment
+## Project structure
 
-This project uses `renv` for package reproducibility. To restore the package environment, run:
+
+data/ # private raw and processed data (not tracked)
+scripts/ # analysis scripts
+outputs/ # generated figures and tables (not tracked)
+renv/ # project package environment
+run_all_analyses.R
+renv.lock
+README.md
+
+
+---
+
+## Reproducing the analysis
+
+1. Clone this repository
+
+2. Open the project in RStudio:
+   
+
+hmh_user_analytics.Rproj
+
+
+3. Restore the package environment:
 
 ```r
 renv::restore()
+Add the required private data files to the data/ folder
 
-The main package groups used in the analysis are:
+Run the full pipeline:
 
-- Project workflow: `here`, `renv`
-- Data cleaning and wrangling: `tidyverse`, `janitor`, `lubridate`
-- Reading/writing files: `readxl`, `openxlsx`, `readr`
-- Text analysis: `tidytext`, `textstem`, `koRpus`, `koRpus.lang.en`, `stringi`
-- Tables and reporting: `gt`
-- Plotting: `ggplot2`, `scales`, `viridis`
-- Modeling/statistics: `MASS`
+source("run_all_analyses.R")
+Data availability
 
-The exact package versions are recorded in `renv.lock`.
+The data/ and outputs/ folders are intentionally excluded from GitHub because they contain private and/or generated data.
 
----
+To reproduce the analysis, you must provide your own input data in the data/ directory.
 
-## Data Notes
+Package environment
 
-This repository does not contain protected health information (PHI).  
-All data are de-identified, aggregated, or derived for analytical purposes.
+This project uses renv to ensure reproducibility.
 
-The structure reflects real-world hospital library workflows,  
-but no patient-level data are included.
+Run:
 
----
+renv::restore()
 
-## Important Notes
+to install all required packages from the lockfile.
 
-- Data files are not tracked in Git (see `.gitignore`)  
-- Legacy logs contain inconsistent formatting and missing values  
-- Requestor categories are standardized, but some values remain unmapped  
-- “Unknown/Not specified” reflects missing or uncategorized entries  
+Main package groups used
+Workflow: here, renv
+Data wrangling: tidyverse, janitor, lubridate
+File I/O: readxl, openxlsx, readr
+Text analysis: tidytext, textstem, koRpus, koRpus.lang.en, stringi
+Tables/reporting: gt
+Visualization: ggplot2, scales, viridis
+Modeling: MASS
 
----
+The exact package versions are recorded in renv.lock.
 
-## Recent Updates
-
-- Refactored helper functions and standardized pipelines  
-- Simplified output system (removed archived CSV workflow)  
-- Improved requestor classification and auditability  
-- Rebuilt combined dataset and reporting workflow  
-- Cleaned repository and normalized structure  
-
----
-
-## Future Improvements
-
-- Improve requestor classification coverage  
-- Expand phrase dictionary for better topic grouping  
-- Add longitudinal trend analysis across HUMC and HMH  
-- Enhance visualization styling for presentation use  
-
----
-
-## License
-
-All rights reserved. This repository is provided for viewing and educational purposes only.
-
-It contains original analytic workflows developed for hospital library data analysis.  
-No reuse, distribution, or derivative use is permitted without prior written permission.
-
-See the LICENSE file for full terms.
+Notes
+Scripts are designed to run in sequence via run_all_analyses.R
+Outputs are regenerated each time the pipeline is run
+Some scripts may take longer depending on data size and text processing steps
