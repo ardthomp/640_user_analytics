@@ -5,11 +5,11 @@
 # Purpose:
 #   1. Read HUMC legacy-form data and HMH shared-form data.
 #   2. Standardize dates, campus names, requestor categories, purposes, and workload fields.
-#   3. Build the combined request-level dataset used by the report script.
+#   3. Build the request-level combined dataset used by 02_generate_combined_report.R.
 #   4. Build the text/lemma inventory using phrases.csv, custom_merges.csv, and lexicon.lex.
-#   5. Save one RDS object that 02_generate_combined_report.R can load quickly.
+#   5. Save one RDS object that the report script can load quickly.
 #
-# Run this first:
+# Run first:
 #   source("scripts/combined/01_build_combined_dataset.R")
 
 # Setup --------------------------------------------------------------------
@@ -26,8 +26,10 @@ source(here("scripts", "shared", "helpers.R"))
 source(here("scripts", "shared", "text_helpers.R"))
 source(here("scripts", "shared", "output_helpers.R"))
 
-# Optional helper files from the GitHub structure. These are sourced only if
-# they exist so this script still runs if the helpers are reorganized later.
+# Optional helper files from the GitHub structure.
+# These are sourced only if they exist so this script still runs if helpers
+# are reorganized later.
+
 optional_helpers <- c(
   here("scripts", "shared", "reference_data_loaders.R"),
   here("scripts", "shared", "text_processing_pipeline.R"),
@@ -48,15 +50,43 @@ csv_dir <- paths$csv_dir
 
 combined_rds_path <- here("data", "processed", "combined_analysis_data.rds")
 
+if (!dir.exists(dirname(combined_rds_path))) {
+  dir.create(dirname(combined_rds_path), recursive = TRUE)
+}
+
+# Clear previous text-analysis CSVs.
+# This replaces the old archive-every-run behavior.
+
+clear_output_folder(csv_dir, "\\.csv$")
+
 # Fallback helper functions -------------------------------------------------
 # These are only created if a shared helper did not already define them.
+
+if (!exists("clean_blank")) {
+  clean_blank <- function(x) {
+    x <- stringr::str_squish(as.character(x))
+    x[x %in% c("", "NA", "N/A", "NULL", "null", "n/a")] <- NA_character_
+    x
+  }
+}
+
+if (!exists("parse_timestamp")) {
+  parse_timestamp <- function(x) {
+    dplyr::coalesce(
+      suppressWarnings(lubridate::mdy_hms(x)),
+      suppressWarnings(lubridate::mdy_hm(x)),
+      suppressWarnings(lubridate::ymd_hms(x)),
+      suppressWarnings(lubridate::ymd_hm(x))
+    )
+  }
+}
 
 if (!exists("read_phrases")) {
   read_phrases <- function(path) {
     if (!file.exists(path)) {
       return(tibble(phrase = character()))
     }
-
+    
     readr::read_csv(path, show_col_types = FALSE) %>%
       janitor::clean_names() %>%
       mutate(
@@ -74,7 +104,7 @@ if (!exists("read_custom_merges")) {
     if (!file.exists(path)) {
       return(tibble(token = character(), lemma_custom = character()))
     }
-
+    
     readr::read_csv(path, show_col_types = FALSE) %>%
       janitor::clean_names() %>%
       rename_with(~ "token", .cols = 1) %>%
@@ -93,7 +123,7 @@ if (!exists("read_lex")) {
     if (!file.exists(path)) {
       return(tibble(token = character(), lemma_from_lex = character()))
     }
-
+    
     utils::read.delim(
       file = path,
       header = FALSE,
@@ -109,7 +139,10 @@ if (!exists("read_lex")) {
         token = str_squish(str_to_lower(as.character(V1))),
         lemma_from_lex = str_squish(str_to_lower(as.character(V3)))
       ) %>%
-      filter(!is.na(token), token != "", !is.na(lemma_from_lex), lemma_from_lex != "") %>%
+      filter(
+        !is.na(token), token != "",
+        !is.na(lemma_from_lex), lemma_from_lex != ""
+      ) %>%
       distinct(token, .keep_all = TRUE)
   }
 }
@@ -134,7 +167,7 @@ if (!exists("collapse_phrases")) {
     if (is.null(phrases_tbl) || nrow(phrases_tbl) == 0) {
       return(text)
     }
-
+    
     phrases <- phrases_tbl %>%
       mutate(
         phrase = str_squish(str_to_lower(as.character(phrase))),
@@ -143,22 +176,39 @@ if (!exists("collapse_phrases")) {
       ) %>%
       filter(!is.na(phrase), phrase != "") %>%
       arrange(desc(n_words), desc(nchar(phrase)))
-
+    
     out <- text
-
+    
     for (i in seq_len(nrow(phrases))) {
-      pattern <- paste0("\\b", stringr::str_replace_all(phrases$phrase[i], "([\\W])", "\\\\\\1"), "\\b")
-      out <- str_replace_all(out, regex(pattern, ignore_case = TRUE), phrases$phrase_collapsed[i])
+      pattern <- paste0(
+        "\\b",
+        stringr::str_replace_all(phrases$phrase[i], "([\\W])", "\\\\\\1"),
+        "\\b"
+      )
+      
+      out <- str_replace_all(
+        out,
+        regex(pattern, ignore_case = TRUE),
+        phrases$phrase_collapsed[i]
+      )
     }
-
+    
     out
+  }
+}
+
+pull_col <- function(data, col_name, default = NA_character_) {
+  if (col_name %in% names(data)) {
+    data[[col_name]]
+  } else {
+    rep(default, nrow(data))
   }
 }
 
 standardize_campus_name <- function(x) {
   x_clean <- str_squish(as.character(x))
   x_lower <- str_to_lower(x_clean)
-
+  
   case_when(
     is.na(x_clean) | x_clean == "" | x_lower %in% c("na", "n/a", "unknown") ~ "Unknown/Not specified",
     str_detect(x_lower, "hackensack") | x_lower == "humc" ~ "Hackensack University Medical Center",
@@ -173,7 +223,7 @@ standardize_campus_name <- function(x) {
 standardize_requestor_name <- function(x) {
   x_clean <- str_squish(as.character(x))
   x_lower <- str_to_lower(x_clean)
-
+  
   case_when(
     is.na(x_clean) | x_clean == "" | x_lower %in% c("na", "n/a", "unknown") ~ "Unknown/Not specified",
     x_lower == "med ed" | str_detect(x_lower, "medical education") ~ "Resident",
@@ -188,7 +238,7 @@ standardize_requestor_name <- function(x) {
 collapse_np_pa_only <- function(x) {
   x_original <- clean_blank(x)
   x_clean <- str_to_lower(x_original)
-
+  
   case_when(
     is.na(x_original) ~ NA_character_,
     str_detect(x_clean, "med ed|medical education") ~ "Resident",
@@ -238,13 +288,13 @@ make_purpose_string <- function(
     if_else(policy == 1, "Policy", NA_character_),
     if_else(patient_info == 1, "Patient Info", NA_character_)
   )
-
+  
   purposes <- purposes[!is.na(purposes)]
-
+  
   if (length(purposes) == 0) {
     return(NA_character_)
   }
-
+  
   paste(purposes, collapse = ", ")
 }
 
@@ -264,22 +314,14 @@ make_requestor_string <- function(
     if_else(committee == 1, "Committee", NA_character_),
     if_else(consumer_health == 1, "Consumer", NA_character_)
   )
-
+  
   requestors <- requestors[!is.na(requestors)]
-
+  
   if (length(requestors) == 0) {
     return(NA_character_)
   }
-
+  
   paste(requestors, collapse = ", ")
-}
-
-safe_col <- function(data, col_name, default = NA_character_) {
-  if (col_name %in% names(data)) {
-    data[[col_name]]
-  } else {
-    rep(default, nrow(data))
-  }
 }
 
 # Load reference files ------------------------------------------------------
@@ -297,14 +339,14 @@ humc_dat <- humc_raw %>%
   mutate(
     source_file_type = "humc",
     source_label = "HUMC legacy form",
-
-    humc = flag_to_binary(safe_col(cur_data_all(), "humc")),
-    carrier = flag_to_binary(safe_col(cur_data_all(), "carrier")),
-    jfk = flag_to_binary(safe_col(cur_data_all(), "jfk")),
-    palisades = flag_to_binary(safe_col(cur_data_all(), "palisades")),
-    network = flag_to_binary(safe_col(cur_data_all(), "network")),
-
-    submitted_date = as.Date(date),
+    
+    humc = flag_to_binary(pull_col(humc_raw, "humc")),
+    carrier = flag_to_binary(pull_col(humc_raw, "carrier")),
+    jfk = flag_to_binary(pull_col(humc_raw, "jfk")),
+    palisades = flag_to_binary(pull_col(humc_raw, "palisades")),
+    network = flag_to_binary(pull_col(humc_raw, "network")),
+    
+    submitted_date = as.Date(pull_col(humc_raw, "date")),
     submitted_at = as.POSIXct(submitted_date),
     year = year(submitted_date),
     month = month(submitted_date, label = TRUE, abbr = TRUE),
@@ -313,8 +355,8 @@ humc_dat <- humc_raw %>%
     week = floor_date(submitted_date, unit = "week", week_start = 1),
     weekday = wday(submitted_date, label = TRUE, abbr = FALSE),
     hour = NA_integer_,
-
-    campus_affiliation_raw = clean_blank(campus_affiliation),
+    
+    campus_affiliation_raw = clean_blank(pull_col(humc_raw, "campus_affiliation")),
     campus_affiliation_clean = make_campus_affiliation(
       campus_affiliation = campus_affiliation_raw,
       humc = humc,
@@ -323,50 +365,50 @@ humc_dat <- humc_raw %>%
       palisades = palisades,
       network = network
     ),
-    campus_affiliation_detail = clean_blank(campus_affiliation_detail),
-
+    campus_affiliation_detail = clean_blank(pull_col(humc_raw, "campus_affiliation_detail")),
+    
     requestor_category = purrr::pmap_chr(
       list(
-        flag_to_binary(safe_col(cur_data_all(), "attending")),
-        flag_to_binary(safe_col(cur_data_all(), "med_ed")),
-        flag_to_binary(safe_col(cur_data_all(), "nurse")),
-        flag_to_binary(safe_col(cur_data_all(), "other_provider")),
-        flag_to_binary(safe_col(cur_data_all(), "committee")),
-        flag_to_binary(safe_col(cur_data_all(), "consumer_health"))
+        flag_to_binary(pull_col(humc_raw, "attending")),
+        flag_to_binary(pull_col(humc_raw, "med_ed")),
+        flag_to_binary(pull_col(humc_raw, "nurse")),
+        flag_to_binary(pull_col(humc_raw, "other_provider")),
+        flag_to_binary(pull_col(humc_raw, "committee")),
+        flag_to_binary(pull_col(humc_raw, "consumer_health"))
       ),
       ~ make_requestor_string(..1, ..2, ..3, ..4, ..5, ..6)
     ),
     requestor_category = collapse_np_pa_only(requestor_category),
-
+    
     request_received = NA_character_,
-    research_topic = clean_blank(topic),
+    research_topic = clean_blank(pull_col(humc_raw, "topic")),
     time_spent = NA_character_,
-
+    
     purpose = purrr::pmap_chr(
       list(
-        flag_to_binary(safe_col(cur_data_all(), "continuing_education")),
-        flag_to_binary(safe_col(cur_data_all(), "patient_care")),
-        flag_to_binary(safe_col(cur_data_all(), "lecture")),
-        flag_to_binary(safe_col(cur_data_all(), "ebp")),
-        flag_to_binary(safe_col(cur_data_all(), "research")),
-        flag_to_binary(safe_col(cur_data_all(), "grant")),
-        flag_to_binary(safe_col(cur_data_all(), "publication")),
-        flag_to_binary(safe_col(cur_data_all(), "irb_app")),
-        flag_to_binary(safe_col(cur_data_all(), "admin")),
-        flag_to_binary(safe_col(cur_data_all(), "policy")),
-        flag_to_binary(safe_col(cur_data_all(), "patient_info"))
+        flag_to_binary(pull_col(humc_raw, "continuing_education")),
+        flag_to_binary(pull_col(humc_raw, "patient_care")),
+        flag_to_binary(pull_col(humc_raw, "lecture")),
+        flag_to_binary(pull_col(humc_raw, "ebp")),
+        flag_to_binary(pull_col(humc_raw, "research")),
+        flag_to_binary(pull_col(humc_raw, "grant")),
+        flag_to_binary(pull_col(humc_raw, "publication")),
+        flag_to_binary(pull_col(humc_raw, "irb_app")),
+        flag_to_binary(pull_col(humc_raw, "admin")),
+        flag_to_binary(pull_col(humc_raw, "policy")),
+        flag_to_binary(pull_col(humc_raw, "patient_info"))
       ),
       ~ make_purpose_string(..1, ..2, ..3, ..4, ..5, ..6, ..7, ..8, ..9, ..10, ..11)
     ),
-
+    
     n_searches = NA_real_,
-    citation_count = suppressWarnings(as.numeric(citation_count))
+    citation_count = suppressWarnings(as.numeric(pull_col(humc_raw, "citation_count")))
   ) %>%
   filter(year %in% analysis_years) %>%
   transmute(
     source_file_type,
     source_label,
-    original_id = request_id,
+    original_id = pull_col(humc_raw, "request_id"),
     submitted_at,
     submitted_date,
     year,
@@ -402,14 +444,15 @@ hmh_dat <- hmh_raw %>%
   mutate(
     source_file_type = "hmh",
     source_label = "HMH shared form",
-
-    humc = if_else(str_detect(str_to_lower(campus_affiliation), "hackensack|humc"), 1L, 0L),
-    carrier = if_else(str_detect(str_to_lower(campus_affiliation), "carrier"), 1L, 0L),
-    jfk = if_else(str_detect(str_to_lower(campus_affiliation), "jfk"), 1L, 0L),
-    palisades = if_else(str_detect(str_to_lower(campus_affiliation), "palisades"), 1L, 0L),
-    network = if_else(str_detect(str_to_lower(campus_affiliation), "network"), 1L, 0L),
-
-    submitted_at = parse_timestamp(timestamp),
+    
+    campus_text = str_to_lower(clean_blank(pull_col(hmh_raw, "campus_affiliation"))),
+    humc = if_else(str_detect(campus_text, "hackensack|humc"), 1L, 0L),
+    carrier = if_else(str_detect(campus_text, "carrier"), 1L, 0L),
+    jfk = if_else(str_detect(campus_text, "jfk"), 1L, 0L),
+    palisades = if_else(str_detect(campus_text, "palisades"), 1L, 0L),
+    network = if_else(str_detect(campus_text, "network"), 1L, 0L),
+    
+    submitted_at = parse_timestamp(pull_col(hmh_raw, "timestamp")),
     submitted_date = as.Date(submitted_at),
     year = year(submitted_at),
     month = month(submitted_at, label = TRUE, abbr = TRUE),
@@ -418,8 +461,8 @@ hmh_dat <- hmh_raw %>%
     week = floor_date(submitted_at, unit = "week", week_start = 1),
     weekday = wday(submitted_at, label = TRUE, abbr = FALSE),
     hour = hour(submitted_at),
-
-    campus_affiliation_raw = clean_blank(campus_affiliation),
+    
+    campus_affiliation_raw = clean_blank(pull_col(hmh_raw, "campus_affiliation")),
     campus_affiliation_clean = make_campus_affiliation(
       campus_affiliation = campus_affiliation_raw,
       humc = humc,
@@ -429,16 +472,17 @@ hmh_dat <- hmh_raw %>%
       network = network
     ),
     campus_affiliation_detail = campus_affiliation_clean,
-
+    
     requestor_category = collapse_np_pa_only(
-      clean_blank(who_requested_this_information)
+      clean_blank(pull_col(hmh_raw, "who_requested_this_information"))
     ),
-    request_received = clean_blank(how_was_the_question_request_received),
-    research_topic = clean_blank(research_topic),
-    time_spent = clean_blank(time_spent_on_searches),
-    purpose = clean_blank(purpose_of_request),
-    n_searches = suppressWarnings(as.numeric(number_of_literature_searches)),
-    citation_count = NA_real_
+    request_received = clean_blank(pull_col(hmh_raw, "how_was_the_question_request_received")),
+    research_topic = clean_blank(pull_col(hmh_raw, "research_topic")),
+    time_spent = clean_blank(pull_col(hmh_raw, "time_spent_on_searches")),
+    purpose = clean_blank(pull_col(hmh_raw, "purpose_of_request")),
+    n_searches = suppressWarnings(as.numeric(pull_col(hmh_raw, "number_of_literature_searches"))),
+    citation_count = NA_real_,
+    select_question_request_type = pull_col(hmh_raw, "select_question_request_type")
   ) %>%
   filter(
     select_question_request_type == "Literature Search",
@@ -492,6 +536,13 @@ combined_dat <- bind_rows(humc_dat, hmh_dat) %>%
   ) %>%
   relocate(request_id, global_request_id)
 
+# Convenience subset:
+# Shared-form requestor/purpose/workload variables should generally come from
+# this object when you want true combined-form summaries.
+
+combined_form_dat <- combined_dat %>%
+  filter(source_file_type == "hmh")
+
 # Purpose-level data --------------------------------------------------------
 
 if (sum(!is.na(combined_dat$purpose)) > 0) {
@@ -505,7 +556,6 @@ if (sum(!is.na(combined_dat$purpose)) > 0) {
         purpose_cleaned == "research" ~ "Research",
         purpose_cleaned == "lecture / presentation" ~ "Lecture / Presentation",
         purpose_cleaned == "publication" ~ "Publication",
-        purpose_cleaned == "evidence-based practice" ~ "Evidence-Based Practice",
         purpose_cleaned == "evidence-based practice" ~ "Evidence-Based Practice",
         purpose_cleaned == "continuing education" ~ "Continuing Education",
         purpose_cleaned == "grant" ~ "Grant",
@@ -546,6 +596,9 @@ if (sum(!is.na(combined_dat$purpose)) > 0) {
 } else {
   tidy_purposes <- tibble()
 }
+
+tidy_purposes_combined_form <- tidy_purposes %>%
+  filter(source_file_type == "hmh")
 
 # Topic-level data ----------------------------------------------------------
 
@@ -671,27 +724,28 @@ phrase_lemma_candidates <- bind_rows(
   arrange(desc(n), type, ngram)
 
 # Text inventory exports ---------------------------------------------------
+# These overwrite the latest CSV files instead of archiving every run.
 
-write_archived_csv(
+write_pretty_csv(
   df = all_research_topics_full,
   filename = "all_research_topics_full",
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = all_research_topics_full %>%
     count(research_topic, sort = TRUE, name = "n_records"),
   filename = "all_research_topics_counts",
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = tidy_lemmas_all,
   filename = "all_lemma_records_full",
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = tidy_lemmas_all %>%
     distinct(lemma) %>%
     arrange(lemma),
@@ -699,7 +753,7 @@ write_archived_csv(
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = tidy_lemmas_all %>%
     count(lemma, sort = TRUE, name = "n_mentions") %>%
     mutate(prop_mentions = n_mentions / sum(n_mentions)) %>%
@@ -708,21 +762,21 @@ write_archived_csv(
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = tidy_lemmas_all %>%
     count(source_file_type, lemma, sort = TRUE, name = "n_mentions"),
   filename = "lemma_counts_by_source",
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = tidy_lemmas_all %>%
     count(campus_affiliation, lemma, sort = TRUE, name = "n_mentions"),
   filename = "lemma_counts_by_campus",
   csv_dir = csv_dir
 )
 
-write_archived_csv(
+write_pretty_csv(
   df = phrase_lemma_candidates,
   filename = "phrase_lemma_candidates",
   csv_dir = csv_dir
@@ -733,7 +787,9 @@ write_archived_csv(
 combined_analysis_data <- list(
   analysis_years = analysis_years,
   combined_dat = combined_dat,
+  combined_form_dat = combined_form_dat,
   tidy_purposes = tidy_purposes,
+  tidy_purposes_combined_form = tidy_purposes_combined_form,
   all_research_topics_full = all_research_topics_full,
   topics_normalized = topics_normalized,
   tidy_lemmas_all = tidy_lemmas_all,
@@ -754,6 +810,7 @@ saveRDS(
 
 cat("\n--- Combined Dataset Build Complete ---\n")
 cat("Request-level rows:", nrow(combined_dat), "\n")
+cat("Shared-form rows:", nrow(combined_form_dat), "\n")
 cat("Research topic records:", nrow(all_research_topics_full), "\n")
 cat("Lemma records:", nrow(tidy_lemmas_all), "\n")
 cat("Unique lemmas:", n_distinct(tidy_lemmas_all$lemma), "\n")
