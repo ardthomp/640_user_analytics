@@ -75,34 +75,39 @@ source("run_all_analyses.R")
 - Generate combined report
 
 ### Key Outputs
+
 HUMC report:
 - outputs/humc/humc_summary_report.xlsx
 Combined report:
 - outputs/combined/combined_summary_report.xlsx
 Figures:
-- outputs/*/figures/
+- outputs/figures/
 Formatted tables (HTML):
- outputs/*/formatted_tables/
-Text Analysis Pipeline
+ - outputs/formatted_tables/
 
-### Research topics are processed using:
+### Text Analysis Pipeline
 
+Research topics are processed using:
 - Text cleaning (encoding fixes, punctuation removal)
 - Phrase collapsing (custom phrase dictionary)
-- Lemmatization:
-BioLemmatizer lexicon
-fallback: textstem
-custom overrides (custom_merges.csv)
-Stop word removal
-Category mapping (categories_long.xlsx)
+
+Lemmatization:
+- BioLemmatizer lexicon
+- fallback: textstem
+- custom overrides (custom_merges.csv)
+- Stop word removal
+- Category mapping (categories_long.xlsx)
 
 ### Outputs include:
 
-Lemma counts
-TF-IDF comparisons
-Category summaries
-Phrase/lemma candidates (for iterative refinement)
-Important Notes
+- Lemma counts
+- TF-IDF comparisons
+- Category summaries
+- Phrase/lemma candidates (for iterative refinement)
+
+---
+
+## Important Notes
 Data files are not tracked in Git (see .gitignore)
 Some legacy logs contain inconsistent formatting and missing values
 Requestor categories are standardized but raw fields may be incomplete
