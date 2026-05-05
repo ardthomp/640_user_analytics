@@ -9,6 +9,8 @@
 # Output:
 #   outputs/humc/out.rds
 
+# Setup libraries and sources -----------------------------------------------
+
 library(here)
 library(tidyverse)
 library(tidytext)

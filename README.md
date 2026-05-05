@@ -60,33 +60,36 @@ outputs/
 
 From the project root in R:
 
+```text
 setwd("path/to/thompson_user_analytics")
 source("run_all_analyses.R")
+```
 
-This will run the full pipeline:
+### This will run the full pipeline:
 
-Build HUMC dataset
-Create HUMC analysis object
-Generate HUMC tables + figures
-Run HMH analyses
-Build combined dataset
-Generate combined report
-Key Outputs
+- Build HUMC dataset
+- Create HUMC analysis object
+- Generate HUMC tables + figures
+- Run HMH analyses
+- Build combined dataset
+- Generate combined report
+
+### Key Outputs
 HUMC report:
-outputs/humc/humc_summary_report.xlsx
+- outputs/humc/humc_summary_report.xlsx
 Combined report:
-outputs/combined/combined_summary_report.xlsx
+- outputs/combined/combined_summary_report.xlsx
 Figures:
-outputs/*/figures/
+- outputs/*/figures/
 Formatted tables (HTML):
-outputs/*/formatted_tables/
+ outputs/*/formatted_tables/
 Text Analysis Pipeline
 
 ### Research topics are processed using:
 
-Text cleaning (encoding fixes, punctuation removal)
-Phrase collapsing (custom phrase dictionary)
-Lemmatization:
+- Text cleaning (encoding fixes, punctuation removal)
+- Phrase collapsing (custom phrase dictionary)
+- Lemmatization:
 BioLemmatizer lexicon
 fallback: textstem
 custom overrides (custom_merges.csv)
