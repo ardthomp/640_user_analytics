@@ -117,5 +117,9 @@ Improve visualization styling for presentation use
 
 ## License
 
-All rights reserved. This project is provided for viewing purposes only.
-Please contact the author for permission to reuse any part of this work.
+All rights reserved. This repository is provided for viewing and educational purposes only.
+
+It contains original analytic workflows developed for hospital library data analysis.  
+No reuse, distribution, or derivative use is permitted without prior written permission.
+
+See the LICENSE file for full terms.
