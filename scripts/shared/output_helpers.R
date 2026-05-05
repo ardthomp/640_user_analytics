@@ -1,4 +1,5 @@
 # scripts/shared/output_helpers.R
+# Line endings normalized for GitHub display
 
 library(dplyr)
 library(janitor)
