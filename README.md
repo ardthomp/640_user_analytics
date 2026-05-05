@@ -6,15 +6,35 @@ End-to-end analytics pipeline for hospital library services, combining structure
 
 ## Overview
 
-This project analyzes literature search and article request activity across a large hospital network, with a focus on its flagship campus and system-wide usage patterns.
+This project builds a full analytics pipeline to evaluate hospital library service utilization, combining structured request data with natural language processing of research topics.
 
-The pipeline:
+The workflow integrates legacy and modern data sources to:
 
-- Combines multi-year flagship legacy logs (2013–2025)
-- Integrates network shared-form data (2025–present)
-- Standardizes request metadata (date, campus, requestor, purpose)
-- Processes research topics using text normalization and lemmatization
-- Generates summary tables, figures, and a combined report
+- Analyze request volume and trends over time  
+- Compare usage across campuses and requestor groups  
+- Examine research topics using text normalization and lemmatization  
+- Generate reproducible reports for operational and strategic insights  
+
+---
+
+## Key Features
+
+- Multi-source data integration (HUMC legacy logs + HMH shared forms)  
+- End-to-end reproducible pipeline in R  
+- Advanced text processing (cleaning, phrase collapsing, lemmatization)  
+- NLP-based topic analysis (lemma counts, TF-IDF, category mapping)  
+- Purpose and requestor classification with auditability  
+- Automated reporting (Excel workbooks, figures, HTML tables)  
+
+---
+
+## Project Pipeline
+
+1. Build HUMC master dataset from legacy logs (2013–2025)  
+2. Normalize and analyze HUMC data  
+3. Process HMH literature search and article request data (2025–present)  
+4. Combine datasets into a unified structure  
+5. Generate tables, figures, and summary reports  
 
 ---
 
@@ -71,20 +91,25 @@ Run HMH analyses
 Build combined dataset
 Generate combined report
 Key Outputs
-HUMC report:
+
+HUMC report
 outputs/humc/humc_summary_report.xlsx
-Combined report:
+
+Combined report
 outputs/combined/combined_summary_report.xlsx
-Figures:
+
+Figures
 outputs/*/figures/
-Formatted tables (HTML):
+
+Formatted tables (HTML)
 outputs/*/formatted_tables/
+
 Text Analysis Pipeline
 
 Research topics are processed using:
 
-Text cleaning (encoding fixes, punctuation removal)
-Phrase collapsing (custom phrase dictionary)
+Text cleaning (encoding fixes, punctuation normalization)
+Phrase collapsing using a custom phrase dictionary
 Lemmatization:
 BioLemmatizer lexicon
 fallback: textstem
@@ -92,25 +117,58 @@ custom overrides (custom_merges.csv)
 Stop word removal
 Category mapping (categories_long.xlsx)
 
-Outputs include:
+OOutputs include:
 
-Lemma counts
-TF-IDF comparisons
-Category summaries
-Phrase/lemma candidates (for iterative refinement)
-Important Notes
-Data files are not tracked in Git (see .gitignore)
-Legacy logs contain inconsistent formatting and missing values
-Requestor categories are standardized but some values remain unmapped
-“Unknown/Not specified” reflects missing or uncategorized entries
-Recent Updates
-Refactored helper functions and standardized pipelines
-Simplified output system (removed archived CSV workflow)
-Improved requestor classification and auditability
-Rebuilt combined dataset and reporting workflow
-Cleaned repository (removed OS files, normalized structure)
-Future Improvements
-Improve requestor classification coverage
-Expand phrase dictionary for better topic grouping
-Add longitudinal trend analysis across HUMC and HMH
-Improve visualization styling for presentation use
+- Lemma frequency counts  
+- TF-IDF comparisons across groups  
+- Category-level summaries  
+- Phrase/lemma candidates for iterative refinement  
+
+---
+
+## Data Notes
+
+This repository does not contain protected health information (PHI).  
+All data are de-identified, aggregated, or derived for analytical purposes.
+
+The structure reflects real-world hospital library workflows,  
+but no patient-level data are included.
+
+---
+
+## Important Notes
+
+- Data files are not tracked in Git (see `.gitignore`)  
+- Legacy logs contain inconsistent formatting and missing values  
+- Requestor categories are standardized, but some values remain unmapped  
+- “Unknown/Not specified” reflects missing or uncategorized entries  
+
+---
+
+## Recent Updates
+
+- Refactored helper functions and standardized pipelines  
+- Simplified output system (removed archived CSV workflow)  
+- Improved requestor classification and auditability  
+- Rebuilt combined dataset and reporting workflow  
+- Cleaned repository and normalized structure  
+
+---
+
+## Future Improvements
+
+- Improve requestor classification coverage  
+- Expand phrase dictionary for better topic grouping  
+- Add longitudinal trend analysis across HUMC and HMH  
+- Enhance visualization styling for presentation use  
+
+---
+
+## License
+
+All rights reserved. This repository is provided for viewing and educational purposes only.
+
+It contains original analytic workflows developed for hospital library data analysis.  
+No reuse, distribution, or derivative use is permitted without prior written permission.
+
+See the LICENSE file for full terms.
