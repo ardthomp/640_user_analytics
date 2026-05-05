@@ -111,31 +111,33 @@ Lemmatization:
 ---
 
 ## Important Notes
-Data files are not tracked in Git (see .gitignore)
-Some legacy logs contain inconsistent formatting and missing values
-Requestor categories are standardized but raw fields may be incomplete
-“Unknown/Not specified” reflects missing or unmapped values
+- Data files are not tracked in Git (see .gitignore)
+- Some legacy logs contain inconsistent formatting and missing values
+- Requestor categories are standardized but raw fields may be incomplete
+- “Unknown/Not specified” reflects missing or unmapped values
 
 ---
 
 ## Recent Updates
-Refactored helper functions and standardized pipelines
-Simplified output system (removed archived CSV workflow)
-Improved requestor classification and auditability
-Rebuilt combined dataset and reporting workflow
-Cleaned repository (removed OS files, normalized line endings)
+- Refactored helper functions and standardized pipelines
+- Simplified output system (removed archived CSV workflow)
+- Improved requestor classification and auditability
+- Rebuilt combined dataset and reporting workflow
+- Cleaned repository (removed OS files, normalized line endings)
 
 ---
 
 ## Future Improvements
-Improve requestor classification coverage
-Expand phrase dictionary for better topic grouping
-Add longitudinal trend analysis across HUMC + HMH
-Improve visualization styling for presentation use
+- Improve requestor classification coverage
+- Expand phrase dictionary for better topic grouping
+- Add longitudinal trend analysis across HUMC + HMH
+- Improve visualization styling for presentation use
 
 ---
 
 ## License
+
+© Andrea Thompson 2026
 
 All rights reserved. This repository is provided for viewing and educational purposes only.
 
