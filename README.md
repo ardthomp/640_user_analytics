@@ -122,7 +122,26 @@ OOutputs include:
 - Lemma frequency counts  
 - TF-IDF comparisons across groups  
 - Category-level summaries  
-- Phrase/lemma candidates for iterative refinement  
+- Phrase/lemma candidates for iterative refinement
+
+## Package environment
+
+This project uses `renv` for package reproducibility. To restore the package environment, run:
+
+```r
+renv::restore()
+
+The main package groups used in the analysis are:
+
+Project workflow: here, renv
+Data cleaning and wrangling: tidyverse, janitor, lubridate
+Reading/writing files: readxl, openxlsx, readr
+Text analysis: tidytext, textstem, koRpus, koRpus.lang.en, stringi
+Tables and reporting: gt
+Plotting: ggplot2, scales, viridis
+Modeling/statistics: MASS
+
+The exact package versions are recorded in renv.lock.
 
 ---
 
