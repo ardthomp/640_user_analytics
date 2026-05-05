@@ -45,8 +45,17 @@ time_level_levels <- c("Low time", "Medium time", "High time")
 raw_path <- hmh_path
 paths <- make_output_paths(file.path("hmh", "literature_searches"))
 
-# Clear latest outputs instead of archiving old outputs.
-clear_output_folder(paths$csv_dir, "\\.(csv|rds)$")
+# Export settings -----------------------------------------------------------
+
+export_csvs <- FALSE
+export_workbook <- TRUE
+
+# Clear outputs -------------------------------------------------------------
+
+if (export_csvs) {
+  clear_output_folder(paths$csv_dir, "\\.(csv|rds)$")
+}
+
 clear_output_folder(paths$figures_dir, "\\.(png|jpg|jpeg|pdf)$")
 clear_output_folder(paths$formatted_tables_dir, "\\.html$")
 clear_output_folder(paths$output_dir, "^hmh_lit_search_summary\\.xlsx$")
@@ -630,22 +639,22 @@ gt::gtsave(
 
 # Save all outputs ---------------------------------------------------------
 
-purrr::iwalk(
-  tables_to_export_clean,
-  ~ write_pretty_csv(
-    df = .x,
-    filename = janitor::make_clean_names(.y),
-    csv_dir = paths$csv_dir
+if (export_csvs) {
+  clear_output_folder(paths$csv_dir, "\\.(csv|rds)$")
+  
+  purrr::iwalk(
+    tables_to_export_clean,
+    ~ write_pretty_csv(
+      df = .x,
+      filename = janitor::make_clean_names(.y),
+      csv_dir = paths$csv_dir
+    )
   )
-)
+}
 
-write_pretty_workbook(
-  tables = tables_to_export_clean,
-  path = summary_filepath
-)
-
-cat("\n--- HMH Literature Search Analysis Complete ---\n")
-cat("Rows analyzed:", nrow(dat), "\n")
-cat("Summary workbook:", summary_filepath, "\n")
-cat("CSV files:", paths$csv_dir, "\n")
-cat("Figures:", paths$figures_dir, "\n")
+if (export_workbook) {
+  write_pretty_workbook(
+    tables = tables_to_export_clean,
+    path = summary_filepath
+  )
+}
