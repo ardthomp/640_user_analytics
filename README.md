@@ -101,7 +101,7 @@ Lemmatization:
 - Stop word removal
 - Category mapping (categories_long.xlsx)
 
-### Outputs include:
+Outputs include:
 
 - Lemma counts
 - TF-IDF comparisons
