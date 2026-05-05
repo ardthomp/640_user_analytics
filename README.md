@@ -78,10 +78,13 @@ source("run_all_analyses.R")
 
 HUMC report:
 - outputs/humc/humc_summary_report.xlsx
+
 Combined report:
 - outputs/combined/combined_summary_report.xlsx
+
 Figures:
 - outputs/figures/
+
 Formatted tables (HTML):
  - outputs/formatted_tables/
 
