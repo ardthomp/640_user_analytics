@@ -65,7 +65,7 @@ setwd("path/to/thompson_user_analytics")
 source("run_all_analyses.R")
 ```
 
-### This will run the full pipeline:
+This will run the full pipeline:
 
 - Build HUMC dataset
 - Create HUMC analysis object
