@@ -117,7 +117,7 @@ custom overrides (custom_merges.csv)
 Stop word removal
 Category mapping (categories_long.xlsx)
 
-OOutputs include:
+Outputs include:
 
 - Lemma frequency counts  
 - TF-IDF comparisons across groups  
@@ -132,18 +132,19 @@ This project uses `renv` for package reproducibility. To restore the package env
 
 ```r
 renv::restore()
+```
 
 The main package groups used in the analysis are:
 
-Project workflow: here, renv
-Data cleaning and wrangling: tidyverse, janitor, lubridate
-Reading/writing files: readxl, openxlsx, readr
-Text analysis: tidytext, textstem, koRpus, koRpus.lang.en, stringi
-Tables and reporting: gt
-Plotting: ggplot2, scales, viridis
-Modeling/statistics: MASS
+- Project workflow: `here`, `renv`
+- Data cleaning and wrangling: `tidyverse`, `janitor`, `lubridate`
+- Reading/writing files: `readxl`, `openxlsx`, `readr`
+- Text analysis: `tidytext`, `textstem`, `koRpus`, `koRpus.lang.en`, `stringi`
+- Tables and reporting: `gt`
+- Plotting: `ggplot2`, `scales`, `viridis`
+- Modeling/statistics: `MASS`
 
-The exact package versions are recorded in renv.lock.
+The exact package versions are recorded in `renv.lock`.
 
 ---
 
