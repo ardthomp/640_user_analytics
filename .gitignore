@@ -6,13 +6,15 @@
 .RData
 .Rproj.user/
 
-# Do not track any data
-data/
+# renv local library (ignore local library only)
+renv/library/
 
-# Do not track generated outputs
+# Do not track any data or outputs
+data/
 outputs/
 
-# Common generated analysis files
+
+# Do not track generated / processed analysis files anywhere
 *.rds
 *.csv
 *.xlsx
@@ -21,7 +23,11 @@ outputs/
 *.jpg
 *.jpeg
 *.pdf
-*.htmlproject_structure.txt
+*.html
+
+# Scratch / notes
 project_structure.txt
 methods.txt
 notes.txt
+
+

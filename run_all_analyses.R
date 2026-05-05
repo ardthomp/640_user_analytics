@@ -26,6 +26,7 @@ run_humc_analysis_object <- TRUE
 run_humc_tables <- TRUE
 run_humc_figures <- TRUE
 run_humc_legacy_trends <- FALSE
+run_humc_model <- FALSE
 
 run_hmh_literature_search <- TRUE
 run_hmh_article_requests <- TRUE
@@ -71,6 +72,10 @@ if (run_humc_figures) {
 
 if (run_humc_legacy_trends) {
   run_script("scripts/humc/04_trends_legacy.R")
+}
+
+if (run_humc_model) {
+  run_script("scripts/humc/04_model_citation_count.R")
 }
 
 # HMH pipeline --------------------------------------------------------------
