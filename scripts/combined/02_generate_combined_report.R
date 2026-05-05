@@ -384,7 +384,10 @@ ggsave(
 )
 
 p_by_campus <- requests_by_campus %>%
-  filter(!is.na(campus_affiliation_clean)) %>%
+  filter(
+    !is.na(campus_affiliation_clean),
+    campus_affiliation_clean != "Unknown/Not specified"
+  ) %>%
   ggplot(aes(x = reorder(campus_affiliation_clean, n_requests), y = n_requests)) +
   geom_col() +
   coord_flip() +
@@ -430,7 +433,7 @@ if (nrow(requests_by_purpose) > 0) {
     coord_flip() +
     labs(
       title = "Literature Search Requests by Purpose, 2025 - Present",
-      subtitle = "IRB App category originates from HUMC legacy form (2025 only)",
+      subtitle = "IRB App, Patient Info, Policy, and Admin categories originate from HUMC legacy form (2025 only)",
       x = "Purpose",
       y = "Number of Selections"
     ) +
