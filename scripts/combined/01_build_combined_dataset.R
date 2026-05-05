@@ -73,18 +73,6 @@ if (!exists("parse_timestamp")) {
   }
 }
 
-if (!exists("clean_topic_text")) {
-  clean_topic_text <- function(x) {
-    clean_text(x, preset = "topic")
-  }
-}
-
-if (!exists("clean_topic_for_normalization")) {
-  clean_topic_for_normalization <- function(x) {
-    clean_text(x, preset = "normalize")
-  }
-}
-
 pull_col <- function(data, col_name, default = NA_character_) {
   if (col_name %in% names(data)) {
     data[[col_name]]

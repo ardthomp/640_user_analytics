@@ -326,7 +326,7 @@ lex_map <- read_lex(lex_path)
 
 dat_text <- dat %>%
   mutate(
-    research_topic_clean = clean_topic_for_normalization(research_topic),
+    research_topic_clean = clean_text(research_topic, preset = "normalize"),
     research_topic_clean = collapse_phrases(research_topic_clean, phrases_tbl),
     research_topic_clean = na_if(research_topic_clean, "")
   )
