@@ -436,10 +436,20 @@ print(purpose_results$cramers_v_purpose)
 
 message("\nRequired RDS files saved to: ", csv_dir)
 
-if (export_csvs) {
-  message("Optional CSV files saved to: ", csv_dir)
+if (export_csvs && length(tables_to_export_clean) > 0) {
+  message("Writing CSV exports...")
+  
+  purrr::iwalk(
+    tables_to_export_clean,
+    ~ write_pretty_csv(
+      df = .x,
+      filename = janitor::make_clean_names(.y),
+      csv_dir = csv_dir
+    )
+  )
+  
 } else {
-  message("Optional CSV export skipped. Set export_csvs <- TRUE to write CSVs.")
+  message("CSV export skipped (either disabled or no valid tables).")
 }
 
 if (export_workbook) {

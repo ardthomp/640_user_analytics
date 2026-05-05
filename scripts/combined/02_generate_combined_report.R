@@ -659,10 +659,20 @@ if (export_workbook) {
   cat("Summary workbook written to:\n", summary_filepath, "\n")
 }
 
-if (export_csvs) {
-  cat("CSV files written to:\n", csv_dir, "\n")
+if (export_csvs && length(tables_to_export_clean) > 0) {
+  message("Writing CSV exports...")
+  
+  purrr::iwalk(
+    tables_to_export_clean,
+    ~ write_pretty_csv(
+      df = .x,
+      filename = janitor::make_clean_names(.y),
+      csv_dir = csv_dir
+    )
+  )
+  
 } else {
-  cat("CSV export skipped. Set export_csvs <- TRUE to write CSVs.\n")
+  message("CSV export skipped (either disabled or no valid tables).")
 }
 
 cat("Figures written to:\n", figures_dir, "\n")

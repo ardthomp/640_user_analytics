@@ -437,17 +437,20 @@ gt::gtsave(
 
 # Save all outputs ---------------------------------------------------------
 
-if (export_csvs) {
-  clear_output_folder(paths$csv_dir, "\\.(csv|rds)$")
+if (export_csvs && length(tables_to_export_clean) > 0) {
+  message("Writing CSV exports...")
   
   purrr::iwalk(
     tables_to_export_clean,
     ~ write_pretty_csv(
       df = .x,
       filename = janitor::make_clean_names(.y),
-      csv_dir = paths$csv_dir
+      csv_dir = csv_dir
     )
   )
+  
+} else {
+  message("CSV export skipped (either disabled or no valid tables).")
 }
 
 if (export_workbook) {
