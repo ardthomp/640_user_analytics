@@ -1,0 +1,15 @@
+Project structure
+
+data/
+  private raw and processed data (not tracked)
+
+scripts/
+  shared/
+  analysis scripts
+
+outputs/
+  generated figures and tables (not tracked)
+
+run_all_analyses.R
+renv.lock
+README.md
