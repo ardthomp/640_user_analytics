@@ -440,6 +440,11 @@ combined_dat <- bind_rows(humc_dat, hmh_dat) %>%
     campus_affiliation_clean = standardize_campus_name(campus_affiliation_clean),
     campus_affiliation_raw = standardize_campus_name(campus_affiliation_raw),
     requestor_category = standardize_requestor_name(requestor_category),
+
+    requestor_category = case_when(
+      year == 2026 & requestor_category == "Physical Therapist" ~ "Allied Health",
+      TRUE ~ requestor_category
+    ),
     plot_group = case_when(
       source_file_type == "humc" ~ "HUMC legacy form",
       source_file_type == "hmh" & !is.na(campus_affiliation_clean) ~ campus_affiliation_clean,

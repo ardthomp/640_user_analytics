@@ -537,8 +537,14 @@ p_heatmap <- combined_dat %>%
   filter(!is.na(hour), !is.na(weekday)) %>%
   count(weekday, hour, name = "n_requests") %>%
   ggplot(aes(x = hour, y = fct_rev(weekday), fill = n_requests)) +
-  geom_tile(color = "white", linewidth = 0.5) +
-  scale_fill_viridis_c(name = "Number of\nRequests") +
+  geom_tile(color = "grey90", linewidth = 0.3) +
+  scale_fill_viridis_c(
+    option = "viridis",
+    direction = 1,
+    begin = 0.05,
+    end = 0.80,
+    name = "Number of\nRequests"
+  ) +
   scale_x_continuous(breaks = seq(0, 23, by = 2), expand = c(0, 0)) +
   labs(
     title = "Request Density by Day and Hour",
