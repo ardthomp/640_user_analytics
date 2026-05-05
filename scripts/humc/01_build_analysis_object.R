@@ -22,6 +22,7 @@ source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "helpers.R"))
 source(here("scripts", "shared", "text_helpers.R"))
 source(here("scripts", "shared", "output_helpers.R"))
+source(here("scripts", "shared", "reference_data_loaders.R"))
 
 project_name <- "humc"
 paths <- make_output_paths(project_name)
@@ -113,7 +114,7 @@ make_purpose_long <- function(my_data2) {
 
 generate_ngram_candidates <- function(df, n_words = 2, min_n = 3) {
   df %>%
-    transmute(Topic = clean_topic_text(as.character(Topic))) %>%
+    transmute(Topic = clean_text(as.character(Topic), preset = "topic")) %>%
     filter(!is.na(Topic), Topic != "") %>%
     tidytext::unnest_tokens(output = ngram, input = Topic, token = "ngrams", n = n_words) %>%
     separate(ngram, into = paste0("w", seq_len(n_words)), sep = " ", remove = FALSE, fill = "right") %>%
@@ -144,7 +145,8 @@ generate_phrase_candidates_pmi <- function(out, min_n = 3) {
     unlist() %>%
     unique()
 
-  topic_clean <- out$my_data2 %>% transmute(Topic = clean_topic_text(as.character(Topic)))
+  topic_clean <- out$my_data2 %>%
+    transmute(Topic = clean_text(as.character(Topic), preset = "topic"))
   words <- topic_clean %>%
     tidytext::unnest_tokens(word, Topic) %>%
     filter(word != "", str_detect(word, "[a-z]"), !word %in% tidytext::stop_words$word)
@@ -206,7 +208,7 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
       across(c(attending, med_ed, nurse, other_provider, committee), flag_to_binary),
       across(all_of(purpose_cols), flag_to_binary),
       submitter_type = standardize_submitter_type(attending, med_ed, nurse, other_provider, committee),
-      Topic = clean_topic_for_normalization(topic),
+      Topic = clean_text(topic, preset = "normalize"),
       Topic = collapse_phrases(Topic, phrases_tbl),
       citation_count = suppressWarnings(as.numeric(citation_count))
     )

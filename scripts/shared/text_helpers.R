@@ -6,6 +6,7 @@ library(stringr)
 library(stringi)
 
 #' A robust function for cleaning character vectors with presets.
+
 clean_text <- function(text, preset = "default") {
   cleaned_text <- text %>%
     as.character() %>%

@@ -395,7 +395,8 @@ if (nrow(tidy_purposes) > 0) {
   lemmas_with_purpose <- tidy_lemmas %>%
     inner_join(
       dplyr::select(tidy_purposes, request_id, purpose_category),
-      by = "request_id"
+      by = "request_id",
+      relationship = "many-to-many"
     )
 
   purpose_tfidf <- lemmas_with_purpose %>%

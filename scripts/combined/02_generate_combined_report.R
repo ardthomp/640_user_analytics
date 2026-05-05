@@ -346,16 +346,18 @@ tables_to_export_clean <- tables_to_export[
   purrr::map_lgl(tables_to_export, ~ is.data.frame(.x) && ncol(.x) > 0 && nrow(.x) > 0)
 ]
 
-# Export CSVs ---------------------------------------------------------------
+# Optional CSV exports ------------------------------------------------------
 
-purrr::iwalk(
-  tables_to_export_clean,
-  ~ write_archived_csv(
-    df = .x,
-    filename = janitor::make_clean_names(.y),
-    csv_dir = csv_dir
+if (export_csvs) {
+  purrr::iwalk(
+    tables_to_export_clean,
+    ~ write_pretty_csv(
+      df = .x,
+      filename = janitor::make_clean_names(.y),
+      csv_dir = csv_dir
+    )
   )
-)
+}
 
 # Figures ------------------------------------------------------------------
 

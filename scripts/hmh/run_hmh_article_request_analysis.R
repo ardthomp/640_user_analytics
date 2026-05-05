@@ -97,7 +97,7 @@ classify_article_source <- function(x) {
 
 clean_num_na <- function(x) {
   x <- clean_blank(as.character(x))
-  readr::parse_number(x)
+  suppressWarnings(readr::parse_number(x))
 }
 
 # Load and process data ----------------------------------------------------
