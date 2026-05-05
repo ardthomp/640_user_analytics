@@ -82,7 +82,7 @@ Formatted tables (HTML):
 outputs/*/formatted_tables/
 Text Analysis Pipeline
 
-Research topics are processed using:
+### Research topics are processed using:
 
 Text cleaning (encoding fixes, punctuation removal)
 Phrase collapsing (custom phrase dictionary)
@@ -93,7 +93,7 @@ custom overrides (custom_merges.csv)
 Stop word removal
 Category mapping (categories_long.xlsx)
 
-Outputs include:
+### Outputs include:
 
 Lemma counts
 TF-IDF comparisons
@@ -132,7 +132,3 @@ It contains original analytic workflows developed for hospital library data anal
 No reuse, distribution, or derivative use is permitted without prior written permission.
 
 See the LICENSE file for full terms.
-
-## Author
-
-Andrea Thompson
