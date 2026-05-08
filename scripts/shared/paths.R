@@ -15,9 +15,10 @@ humc_path <- file.path(processed_data_dir, "humc.csv")
 hmh_path <- file.path(raw_data_dir, "hmh.csv")
 
 # Shared reference files
-phrases_path <- file.path(reference_dir, "phrases.csv")
-custom_merge_path <- file.path(reference_dir, "custom_merges.csv")
-lex_path <- file.path(reference_dir, "lexicon.lex")
+phrases_path <- here("data", "reference", "phrases.csv")
+custom_merges_path <- here("data", "reference", "custom_merges.csv")
+lex_path <- here("data", "reference", "lexicon.lex")
+categories_path <- here("data", "reference", "categories_long.xlsx")
 
 # Output directory helper (Simplified)
 make_output_paths <- function(project_name) {

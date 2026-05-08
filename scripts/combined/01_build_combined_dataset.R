@@ -227,7 +227,7 @@ parse_purpose_categories <- function(purpose) {
 # Load reference files ------------------------------------------------------
 
 phrases_tbl <- read_phrases(phrases_path)
-custom_map <- read_custom_merges(custom_merge_path)
+custom_map <- read_custom_merges(custom_merges_path)
 lex_map <- read_lex(lex_path)
 
 # Import HUMC legacy data ---------------------------------------------------

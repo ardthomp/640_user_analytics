@@ -27,14 +27,19 @@ source(here("scripts", "shared", "output_helpers.R"))
 source(here("scripts", "shared", "reference_data_loaders.R"))
 
 project_name <- "humc"
+
 paths <- make_output_paths(project_name)
 output_dir <- paths$output_dir
-project_reference_dir <- file.path(reference_dir, project_name)
-if (!dir.exists(project_reference_dir)) dir.create(project_reference_dir, recursive = TRUE)
 
 raw_path <- humc_path
-categories_path <- file.path(project_reference_dir, "categories_long.xlsx")
-coding_path <- file.path(project_reference_dir, "lemma_coding.csv")
+
+phrases_path <- file.path(reference_dir, "phrases.csv")
+custom_merges_path <- file.path(reference_dir, "custom_merges.csv")
+categories_path <- file.path(reference_dir, "categories_long.xlsx")
+lex_path <- file.path(reference_dir, "lexicon.lex")
+
+coding_path <- file.path(reference_dir, "lemma_coding.csv")
+
 out_path <- file.path(output_dir, "out.rds")
 
 read_categories <- function(path) {
@@ -267,7 +272,7 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
 
 if (!file.exists(raw_path)) stop("Cannot find HUMC processed file: ", raw_path, "\nRun 00_build_humc_master_csv.R first.")
 my_data <- read_csv(raw_path, show_col_types = FALSE)
-out <- build_outputs(my_data, lex_path, phrases_path, custom_merge_path, categories_path)
+out <- build_outputs(my_data, lex_path, phrases_path, custom_merges_path, categories_path)
 saveRDS(out, out_path)
 message("Saved HUMC analysis object to: ", out_path)
 message("Requests in analysis object: ", nrow(out$my_data2))

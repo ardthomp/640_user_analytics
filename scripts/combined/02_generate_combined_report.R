@@ -76,11 +76,15 @@ if (export_csvs) {
 
 clear_output_folder(figures_dir, "\\.(png|jpg|jpeg|pdf)$")
 clear_output_folder(formatted_tables_dir, "\\.html$")
-clear_output_folder(output_dir, "^summary_report_.*\\.xlsx$|^combined_summary_report\\.xlsx$")
+clear_output_folder(
+  output_dir,
+  "^summary_report_.*\\.xlsx$|^combined_summary_report\\.xlsx$|^combined_topic_lemma_report\\.xlsx$"
+)
 
 # Fixed output path (no timestamps) -----------------------------------------
 
 summary_filepath <- file.path(output_dir, "combined_summary_report.xlsx")
+topic_lemma_filepath <- file.path(output_dir, "combined_topic_lemma_report.xlsx")
 
 # Load built data -----------------------------------------------------------
 
@@ -91,6 +95,31 @@ tidy_purposes <- analysis_data$tidy_purposes
 tidy_lemmas_all <- analysis_data$tidy_lemmas_all
 phrase_lemma_candidates <- analysis_data$phrase_lemma_candidates
 all_research_topics_full <- analysis_data$all_research_topics_full
+
+# Research topic-only exports ----------------------------------------------
+
+# Research topic-only exports ----------------------------------------------
+
+all_cleaned_research_topics <- all_research_topics_full %>%
+  dplyr::mutate(
+    research_topic_clean = clean_text(
+      as.character(research_topic),
+      preset = "topic"
+    )
+  ) %>%
+  dplyr::select(dplyr::any_of(c(
+    "global_request_id",
+    "source_label",
+    "source_file_type",
+    "campus_affiliation_clean",
+    "requestor_category",
+    "research_topic",
+    "research_topic_clean"
+  )))
+
+research_topic_counts <- all_cleaned_research_topics %>%
+  dplyr::count(research_topic_clean, sort = TRUE, name = "n") %>%
+  dplyr::filter(!is.na(research_topic_clean), research_topic_clean != "")
 
 # Data checks ---------------------------------------------------------------
 
@@ -269,26 +298,32 @@ if (nrow(tidy_purposes) > 0) {
 
 # Matched-month comparison table ------------------------------------------
 
-latest_month_2026 <- combined_dat %>%
+penultimate_month_2026 <- combined_dat %>%
   filter(year == 2026) %>%
-  summarize(max_month = max(month_num, na.rm = TRUE)) %>%
-  pull(max_month)
+  distinct(month_num) %>%
+  arrange(desc(month_num)) %>%
+  slice(2) %>%
+  pull(month_num)
 
-if (is.infinite(latest_month_2026) || is.na(latest_month_2026)) {
-  latest_month_2026 <- max(combined_dat$month_num, na.rm = TRUE)
+if (length(penultimate_month_2026) == 0 || is.na(penultimate_month_2026)) {
+  penultimate_month_2026 <- combined_dat %>%
+    distinct(month_num) %>%
+    arrange(desc(month_num)) %>%
+    slice(2) %>%
+    pull(month_num)
 }
 
 requests_per_month_matched <- combined_dat %>%
   filter(
     year %in% c(2025, 2026),
-    month_num <= latest_month_2026
+    month_num <= penultimate_month_2026
   ) %>%
   count(year, month_num, month, name = "n_requests") %>%
   mutate(
     year = factor(year),
     month_label = factor(
       month.abb[month_num],
-      levels = month.abb[1:latest_month_2026]
+      levels = month.abb[1:penultimate_month_2026]
     )
   )
 
@@ -301,29 +336,10 @@ requests_by_month_source <- combined_dat %>%
 
 # Tables to export ---------------------------------------------------------
 
-tables_to_export <- list(
-  "Campus Check" = campus_check,
-  "Requestor Check" = requestor_check,
-
-  "Requests Over Time" = requests_over_time,
-  "Requests by Source" = requests_by_source,
-  "Requests by Campus" = requests_by_campus,
-  "Requests by Requestor" = requests_by_requestor,
-  "Requests by Month Total" = requests_by_month_total,
-  "Requests by Year" = requests_by_year,
-  "Requests by Weekday" = requests_by_weekday,
-  "Requests by Hour" = requests_by_hour,
-  "Time Spent Counts" = time_spent_counts,
-
-  "Searches by Year" = searches_by_year,
-  "Searches by Campus" = searches_by_campus,
-
-  "Requests by Purpose" = requests_by_purpose,
-  "Purpose by Campus" = purpose_by_campus,
-  "Purpose by Requestor" = purpose_by_requestor,
-  "Other Purpose Details" = other_purpose_details,
-
+topic_lemma_tables <- list(
   "All Research Topics Full" = all_research_topics_full,
+  "All Cleaned Research Topics" = all_cleaned_research_topics,
+  "Research Topic Counts" = research_topic_counts,
   "Top Lemmas" = top_lemmas,
   "Top 500 Lemmas" = top_500_lemmas,
   "All Lemmas" = all_lemmas,
@@ -335,29 +351,45 @@ tables_to_export <- list(
   "Lemma TF-IDF by Requestor" = lemma_tfidf_by_requestor,
   "Lemma by Purpose" = lemma_by_purpose,
   "Lemma TF-IDF by Purpose" = lemma_tfidf_by_purpose,
-  "Phrase Lemma Candidates" = phrase_lemma_candidates,
+  "Phrase Lemma Candidates" = phrase_lemma_candidates
+)
 
+summary_tables <- list(
+  "Campus Check" = campus_check,
+  "Requestor Check" = requestor_check,
+  
+  "Requests Over Time" = requests_over_time,
+  "Requests by Source" = requests_by_source,
+  "Requests by Campus" = requests_by_campus,
+  "Requests by Requestor" = requests_by_requestor,
+  "Requests by Month Total" = requests_by_month_total,
+  "Requests by Year" = requests_by_year,
+  "Requests by Weekday" = requests_by_weekday,
+  "Requests by Hour" = requests_by_hour,
+  "Time Spent Counts" = time_spent_counts,
+  
+  "Searches by Year" = searches_by_year,
+  "Searches by Campus" = searches_by_campus,
+  
+  "Requests by Purpose" = requests_by_purpose,
+  "Purpose by Campus" = purpose_by_campus,
+  "Purpose by Requestor" = purpose_by_requestor,
+  "Other Purpose Details" = other_purpose_details,
+  
   "Matched Month Requests" = requests_per_month_matched,
   "Monthly Requests Full" = requests_per_month_full,
   "Monthly Requests by Source" = requests_by_month_source
 )
 
-tables_to_export_clean <- tables_to_export[
-  purrr::map_lgl(tables_to_export, ~ is.data.frame(.x) && ncol(.x) > 0 && nrow(.x) > 0)
+topic_lemma_tables_clean <- topic_lemma_tables[
+  purrr::map_lgl(topic_lemma_tables, ~ is.data.frame(.x) && ncol(.x) > 0 && nrow(.x) > 0)
 ]
 
-# Optional CSV exports ------------------------------------------------------
+summary_tables_clean <- summary_tables[
+  purrr::map_lgl(summary_tables, ~ is.data.frame(.x) && ncol(.x) > 0 && nrow(.x) > 0)
+]
 
-if (export_csvs) {
-  purrr::iwalk(
-    tables_to_export_clean,
-    ~ write_pretty_csv(
-      df = .x,
-      filename = janitor::make_clean_names(.y),
-      csv_dir = csv_dir
-    )
-  )
-}
+tables_to_export_clean <- c(summary_tables_clean, topic_lemma_tables_clean)
 
 # Figures ------------------------------------------------------------------
 
@@ -457,7 +489,7 @@ p_matched <- ggplot(
   scale_y_continuous(limits = c(0, NA)) +
   labs(
     title = "Monthly Literature Search Requests, Matched Months",
-    subtitle = paste0("Comparison of Jan–", month.abb[latest_month_2026], " 2025 and 2026"),
+    subtitle = paste0("Comparison of Jan–", month.abb[penultimate_month_2026], " 2025 and 2026"),
     x = "Month",
     y = "Number of Requests",
     color = "Year"
@@ -652,8 +684,13 @@ if (export_csvs) {
 
 if (export_workbook) {
   write_pretty_workbook(
-    tables = tables_to_export_clean,
+    tables = summary_tables_clean,
     path = summary_filepath
+  )
+  
+  write_pretty_workbook(
+    tables = topic_lemma_tables_clean,
+    path = topic_lemma_filepath
   )
 }
 
@@ -663,6 +700,7 @@ cat("\n--- Combined Report Complete ---\n")
 
 if (export_workbook) {
   cat("Summary workbook written to:\n", summary_filepath, "\n")
+  cat("Topic/lemma workbook written to:\n", topic_lemma_filepath, "\n")
 }
 
 if (export_csvs && length(tables_to_export_clean) > 0) {

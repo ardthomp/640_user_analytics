@@ -321,7 +321,7 @@ if (nrow(tidy_purposes) > 0) {
 # Text analysis ------------------------------------------------------------
 
 phrases_tbl <- read_phrases(phrases_path)
-custom_map <- read_custom_merges(custom_merge_path)
+custom_map <- read_custom_merges(custom_merges_path)
 lex_map <- read_lex(lex_path)
 
 dat_text <- dat %>%
