@@ -10,16 +10,30 @@ source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "helpers.R"))
 source(here("scripts", "shared", "output_helpers.R"))
 
-paths <- make_output_paths("humc")
-output_dir <- paths$output_dir
-figures_dir <- paths$figures_dir
-model_dir <- file.path(output_dir, "model")
+# Optional model output paths -----------------------------------------------
 
-if (!dir.exists(model_dir)) dir.create(model_dir, recursive = TRUE)
+humc_paths <- make_output_paths("humc")
+humc_output_dir <- humc_paths$output_dir
+out_path <- file.path(humc_output_dir, "out.rds")
 
-out_path <- file.path(output_dir, "out.rds")
+out <- readRDS(out_path)
 
-clear_output_folder(model_dir, "\\.(csv|rds|xlsx|html|png|jpg|jpeg|pdf)$")
+model_output_dir <- here(
+  "outputs",
+  "optional_models",
+  "humc_01_citation_count_prediction"
+)
+
+figures_dir <- file.path(model_output_dir, "figures")
+tables_dir  <- file.path(model_output_dir, "tables")
+
+dir.create(figures_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(tables_dir, recursive = TRUE, showWarnings = FALSE)
+
+clear_output_folder(
+  model_output_dir,
+  "\\.(csv|rds|xlsx|html|png|jpg|jpeg|pdf)$"
+)
 
 # Build modeling dataset ------------------------------------------
 
@@ -143,18 +157,17 @@ model_results_clean <- model_results %>%
     across(where(is.numeric), ~ round(.x, 3))
   )
 
-# Save model objects -----------------------------------------------
-
-saveRDS(model_data, file.path(model_dir, "model_data.rds"))
-saveRDS(model_quasi, file.path(model_dir, "quasipoisson_citation_model.rds"))
+# Save model objects
+saveRDS(model_data, file.path(model_output_dir, "model_data.rds"))
+saveRDS(model_quasi, file.path(model_output_dir, "quasipoisson_citation_model.rds"))
 
 # Export CSVs ------------------------------------------------------
 
-write_pretty_csv(citation_check, "model_citation_check", model_dir)
-write_pretty_csv(submitter_summary, "model_submitter_summary", model_dir)
-write_pretty_csv(purpose_summary, "model_purpose_summary", model_dir)
-write_pretty_csv(year_summary, "model_year_summary", model_dir)
-write_pretty_csv(model_results_clean, "quasipoisson_model_results", model_dir)
+write_pretty_csv(citation_check, "model_citation_check", tables_dir)
+write_pretty_csv(submitter_summary, "model_submitter_summary", tables_dir)
+write_pretty_csv(purpose_summary, "model_purpose_summary", tables_dir)
+write_pretty_csv(year_summary, "model_year_summary", tables_dir)
+write_pretty_csv(model_results_clean, "quasipoisson_model_results", tables_dir)
 
 # Model figures and formatted outputs --------------------------------------
 
@@ -517,13 +530,6 @@ ggsave(
   dpi = 300
 )
 
-ggsave(
-  file.path(figures_dir, "combined_model_results_figure.pdf"),
-  p_model_combined,
-  width = 21,
-  height = 10
-)
-
 ## Export HTML model table --------------------------------------------------
 
 model_results_table <- model_results %>%
@@ -560,7 +566,7 @@ gt_model <- model_results_table %>%
 
 gtsave(
   gt_model,
-  file.path(model_dir, "quasipoisson_model_results.html")
+  file.path(model_output_dir, "quasipoisson_model_results.html")
 )
 
 # Pairwise comparisons using emmeans ---------------------------------------
@@ -621,7 +627,7 @@ requestor_results <- requestor_raw %>%
 write_pretty_csv(
   requestor_results,
   "model_requestor_pairwise_comparisons",
-  model_dir
+  tables_dir
 )
 
 ## Mini figure: requestor pairwise comparisons ------------------------------
@@ -670,13 +676,6 @@ ggsave(
   width = 9,
   height = 6,
   dpi = 300
-)
-
-ggsave(
-  file.path(figures_dir, "requestor_pairwise_comparisons.pdf"),
-  p_requestor_pairwise,
-  width = 9,
-  height = 6
 )
 
 ## --- Purpose comparisons --------------------------------------------------
@@ -733,7 +732,7 @@ purpose_results <- purpose_raw %>%
 write_pretty_csv(
   purpose_results,
   "model_purpose_pairwise_comparisons",
-  model_dir
+  tables_dir
 )
 
 # Export Excel workbook --------------------------------------------
@@ -749,7 +748,7 @@ model_tables_to_export <- list(
 )
 
 model_summary_filepath <- file.path(
-  model_dir,
+  model_output_dir,
   "model_summary_report.xlsx"
 )
 
@@ -764,5 +763,5 @@ model_summary
 citation_check
 model_results_clean
 
-message("Model outputs saved to: ", model_dir)
+message("Model outputs saved to: ", model_output_dir)
 message("Model summary workbook saved to: ", model_summary_filepath)

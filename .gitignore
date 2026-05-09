@@ -12,6 +12,8 @@ renv/library/
 # Do not track any data or outputs
 data/
 outputs/
+outputs/combined/poster_figures/
+poster.R
 
 
 # Do not track generated / processed analysis files anywhere

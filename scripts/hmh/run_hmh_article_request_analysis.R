@@ -73,9 +73,18 @@ if (!exists("parse_timestamp")) {
 
 collapse_requestor_role <- function(x) {
   x_clean <- str_to_lower(str_squish(as.character(x)))
-
+  
   case_when(
-    str_detect(x_clean, "nurse practitioner|\\bnp\\b|\\bpa\\b|physician assistant") ~ "Nurse Practitioner/ PA",
+    str_detect(
+      x_clean,
+      "nurse practitioner|\\bnp\\b|\\bpa\\b|physician assistant"
+    ) ~ "Nurse Practitioner/ PA",
+    
+    str_detect(
+      x_clean,
+      "physical therapist|physical therapy|\\bpt\\b"
+    ) ~ "Allied Health Professional",
+    
     TRUE ~ clean_blank(x)
   )
 }
@@ -83,7 +92,7 @@ collapse_requestor_role <- function(x) {
 classify_article_source <- function(x) {
   x <- str_to_lower(as.character(x))
   x <- str_squish(x)
-
+  
   case_when(
     is.na(x) | x == "" ~ NA_character_,
     str_detect(x, "pubmed central|pmc") ~ "PubMed Central",
@@ -115,20 +124,32 @@ hmh_data <- hmh_raw %>%
     timestamp = parse_timestamp(timestamp),
     request_year = lubridate::year(timestamp),
     request_month = as.Date(lubridate::floor_date(timestamp, unit = "month")),
+    
     requestor_role = collapse_requestor_role(who_requested_this_information),
     request_received = clean_blank(how_was_the_question_request_received),
+    
     campus_affiliation = clean_blank(campus_affiliation),
+    campus_affiliation = case_when(
+      str_to_lower(campus_affiliation) ==
+        "hackensack meridian university medical center" ~
+        "Hackensack University Medical Center",
+      TRUE ~ campus_affiliation
+    ),
+    
     select_question_request_type = clean_blank(select_question_request_type),
+    
     article_chapter_other_source_text =
       clean_blank(number_of_articles_chapters_retrieved_from_other_include_source),
     article_chapter_other_source_category =
       classify_article_source(article_chapter_other_source_text),
+    
     n_article_chapter_other =
       clean_num_na(number_of_articles_chapters_retrieved_from_other_include_source),
     n_article_chapter_subscribed =
       clean_num_na(number_of_articles_chapters_retrieved_from_subscribed_content),
     n_article_chapter_docline =
       clean_num_na(number_of_articles_chapters_retrieved_from_docline),
+    
     total_articles_chapters_retrieved = rowSums(
       cbind(
         coalesce(n_article_chapter_other, 0),
@@ -136,6 +157,7 @@ hmh_data <- hmh_raw %>%
         coalesce(n_article_chapter_docline, 0)
       )
     ),
+    
     is_article_chapter_request = if_else(
       select_question_request_type == "Article/Chapter Request",
       TRUE,
@@ -151,6 +173,20 @@ article_chapter_data <- hmh_data %>%
     is_article_chapter_request
   )
 
+# Penultimate month setup ---------------------------------------------------
+
+latest_month_start <- article_chapter_data %>%
+  summarize(latest_month = max(request_month, na.rm = TRUE)) %>%
+  pull(latest_month)
+
+penultimate_month_start <- latest_month_start %m-% months(1)
+
+month_breaks <- seq(
+  from = as.Date(paste0(analysis_year, "-01-01")),
+  to = penultimate_month_start,
+  by = "1 month"
+)
+
 # Analysis tables ----------------------------------------------------------
 
 article_chapter_source_long <- bind_rows(
@@ -165,7 +201,7 @@ article_chapter_source_long <- bind_rows(
       n_items = n_article_chapter_other
     ) %>%
     filter(!is.na(source_type)),
-
+  
   article_chapter_data %>%
     transmute(
       request_id,
@@ -176,7 +212,7 @@ article_chapter_source_long <- bind_rows(
       source_type = "Subscribed Content",
       n_items = n_article_chapter_subscribed
     ),
-
+  
   article_chapter_data %>%
     transmute(
       request_id,
@@ -211,6 +247,10 @@ article_chapter_by_campus <- article_chapter_data %>%
   mutate(prop = n_requests / sum(n_requests))
 
 article_chapter_by_month <- article_chapter_data %>%
+  filter(
+    request_month >= as.Date(paste0(analysis_year, "-01-01")),
+    request_month <= penultimate_month_start
+  ) %>%
   count(request_month, sort = FALSE, name = "n_requests")
 
 article_chapter_by_source <- article_chapter_source_long %>%
@@ -363,16 +403,26 @@ p_article_by_campus <- ggplot(plot_campus, aes(x = campus_affiliation, y = n_req
   ) +
   theme_minimal(base_size = 13)
 
-p_article_by_month <- ggplot(article_chapter_by_month, aes(x = request_month, y = n_requests)) +
+p_article_by_month <- ggplot(
+  article_chapter_by_month,
+  aes(x = request_month, y = n_requests)
+) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
   scale_x_date(
+    breaks = month_breaks,
     date_labels = "%b",
-    date_breaks = "1 month",
-    limits = as.Date(c(paste0(analysis_year, "-01-01"), paste0(analysis_year, "-12-31")))
+    limits = range(month_breaks)
   ) +
+  scale_y_continuous(limits = c(0, NA)) +
   labs(
-    title = paste0("Article/Chapter Requests Over Time (", analysis_year, ")"),
+    title = paste0(
+      "Article/Chapter Requests Over Time (Jan–",
+      month.abb[lubridate::month(penultimate_month_start)],
+      " ",
+      analysis_year,
+      ")"
+    ),
     x = NULL,
     y = "Number of Requests"
   ) +
@@ -445,7 +495,7 @@ if (export_csvs && length(tables_to_export_clean) > 0) {
     ~ write_pretty_csv(
       df = .x,
       filename = janitor::make_clean_names(.y),
-      csv_dir = csv_dir
+      csv_dir = paths$csv_dir
     )
   )
   

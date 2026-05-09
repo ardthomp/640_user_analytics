@@ -23,13 +23,18 @@ categories_path <- here("data", "reference", "categories_long.xlsx")
 # Output directory helper (Simplified)
 make_output_paths <- function(project_name) {
   output_dir <- file.path(outputs_dir, project_name)
+  
   paths <- list(
     output_dir = output_dir,
     csv_dir = file.path(output_dir, "csv"),
     figures_dir = file.path(output_dir, "figures"),
-    formatted_tables_dir = file.path(output_dir, "formatted_tables"),
-    model_dir = file.path(output_dir, "model")
+    formatted_tables_dir = file.path(output_dir, "formatted_tables")
   )
-  purrr::walk(paths, ~ if (!dir.exists(.x)) dir.create(.x, recursive = TRUE))
+  
+  purrr::walk(
+    paths,
+    ~ if (!dir.exists(.x)) dir.create(.x, recursive = TRUE)
+  )
+  
   return(paths)
 }

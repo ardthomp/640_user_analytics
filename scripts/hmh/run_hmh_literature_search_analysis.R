@@ -68,14 +68,14 @@ safe_max_numeric <- function(x) {
   if (all(is.na(x))) {
     return(NA_real_)
   }
-
+  
   max(x, na.rm = TRUE)
 }
 
 collapse_requestor_group <- function(x) {
   x_original <- stringr::str_trim(as.character(x))
   x_clean <- stringr::str_to_lower(x_original)
-
+  
   dplyr::case_when(
     is.na(x_original) | x_original == "" ~ NA_character_,
     stringr::str_detect(
@@ -123,7 +123,7 @@ dat <- raw %>%
     year = lubridate::year(submitted_at),
     month = lubridate::month(submitted_at, label = TRUE, abbr = TRUE),
     month_num = lubridate::month(submitted_at),
-    year_month = lubridate::floor_date(submitted_at, "month"),
+    year_month = as.Date(lubridate::floor_date(submitted_at, "month")),
     week = lubridate::floor_date(submitted_at, unit = "week", week_start = 1),
     weekday = lubridate::wday(submitted_at, label = TRUE, abbr = FALSE) %>%
       factor(levels = weekday_levels),
@@ -138,6 +138,12 @@ dat <- raw %>%
     requestor_group = collapse_requestor_group(requestor_category),
     request_received = clean_blank(how_was_the_question_request_received),
     campus_affiliation = clean_blank(campus_affiliation),
+    campus_affiliation = case_when(
+      stringr::str_to_lower(campus_affiliation) ==
+        "hackensack meridian university medical center" ~
+        "Hackensack University Medical Center",
+      TRUE ~ campus_affiliation
+    ),
     research_topic = clean_blank(research_topic),
     time_spent = clean_blank(time_spent_on_searches),
     purpose = clean_blank(purpose_of_request),
@@ -146,9 +152,27 @@ dat <- raw %>%
   filter(!is.na(weekday)) %>%
   filter(requestor_group != "Consumer" | is.na(requestor_group))
 
+# Penultimate month setup --------------------------------------------------
+
+latest_month_start <- dat %>%
+  summarize(latest_month = max(year_month, na.rm = TRUE)) %>%
+  pull(latest_month)
+
+penultimate_month_start <- latest_month_start %m-% months(1)
+
+month_breaks <- seq(
+  from = as.Date(paste0(analysis_year, "-01-01")),
+  to = penultimate_month_start,
+  by = "1 month"
+)
+
 # Demand / utilization tables ----------------------------------------------
 
 requests_per_month <- dat %>%
+  filter(
+    year_month >= as.Date(paste0(analysis_year, "-01-01")),
+    year_month <= penultimate_month_start
+  ) %>%
   count(year_month, name = "n_requests")
 
 requests_by_weekday <- dat %>%
@@ -205,27 +229,27 @@ if (sum(!is.na(dat$purpose)) > 0) {
       purpose_category,
       purpose_other_detail
     )
-
+  
   requests_by_purpose <- tidy_purposes %>%
     count(purpose_category, sort = TRUE, name = "n_selections") %>%
     mutate(prop = n_selections / sum(n_selections))
-
+  
   requestor_by_purpose <- tidy_purposes %>%
     count(requestor_group, purpose_category, sort = TRUE, name = "n_selections") %>%
     group_by(requestor_group) %>%
     mutate(prop_within_requestor = n_selections / sum(n_selections)) %>%
     ungroup()
-
+  
   campus_by_purpose <- tidy_purposes %>%
     count(campus_affiliation, purpose_category, sort = TRUE, name = "n_selections") %>%
     group_by(campus_affiliation) %>%
     mutate(prop_within_campus = n_selections / sum(n_selections)) %>%
     ungroup()
-
+  
   other_purpose_details <- tidy_purposes %>%
     filter(purpose_category == "Other") %>%
     count(purpose_other_detail, sort = TRUE, name = "n")
-
+  
   other_purpose_list <- tidy_purposes %>%
     filter(purpose_category == "Other") %>%
     left_join(
@@ -306,7 +330,7 @@ if (nrow(tidy_purposes) > 0) {
     group_by(purpose_category) %>%
     mutate(prop_within_purpose = n_selections / sum(n_selections)) %>%
     ungroup()
-
+  
   time_spent_pct_by_purpose <- tidy_purposes %>%
     filter(!is.na(purpose_category), !is.na(time_spent)) %>%
     count(purpose_category, time_spent, name = "n_selections") %>%
@@ -398,12 +422,12 @@ if (nrow(tidy_purposes) > 0) {
       by = "request_id",
       relationship = "many-to-many"
     )
-
+  
   purpose_tfidf <- lemmas_with_purpose %>%
     count(purpose_category, lemma, sort = TRUE) %>%
     tidytext::bind_tf_idf(lemma, purpose_category, n) %>%
     arrange(desc(tf_idf))
-
+  
   top_purpose_lemmas <- purpose_tfidf %>%
     group_by(purpose_category) %>%
     slice_max(tf_idf, n = 15, with_ties = FALSE) %>%
@@ -442,27 +466,27 @@ polr_results_df <- tibble()
 
 if (
   nrow(model_data_ordinal) > 50 &&
-    dplyr::n_distinct(model_data_ordinal$time_category) > 1
+  dplyr::n_distinct(model_data_ordinal$time_category) > 1
 ) {
   polr_time <- MASS::polr(
     time_category ~ requestor_group + weekday,
     data = model_data_ordinal,
     Hess = TRUE
   )
-
+  
   polr_summary <- summary(polr_time)
-
+  
   p_values <- pnorm(
     abs(polr_summary$coefficients[, "t value"]),
     lower.tail = FALSE
   ) * 2
-
+  
   polr_results <- cbind(
     polr_summary$coefficients,
     "p value" = p_values,
     "odds_ratio" = exp(polr_summary$coefficients[, "Value"])
   )
-
+  
   polr_results_df <- as.data.frame(polr_results) %>%
     tibble::rownames_to_column("term")
 }
@@ -506,11 +530,22 @@ tables_to_export_clean <- tables_to_export[
 # Figures ------------------------------------------------------------------
 
 p1 <- ggplot(requests_per_month, aes(x = year_month, y = n_requests)) +
-  geom_line() +
-  geom_point() +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_x_date(
+    breaks = month_breaks,
+    date_labels = "%b",
+    limits = range(month_breaks)
+  ) +
   scale_y_continuous(limits = c(0, NA)) +
   labs(
-    title = "Literature Search Requests by Month",
+    title = paste0(
+      "Literature Search Requests by Month (Jan–",
+      month.abb[lubridate::month(penultimate_month_start)],
+      " ",
+      analysis_year,
+      ")"
+    ),
     x = "Month",
     y = "Number of Requests"
   ) +
@@ -545,7 +580,7 @@ if (nrow(requests_by_purpose) > 0) {
       y = "Number of Selections"
     ) +
     theme_minimal()
-
+  
   ggsave(file.path(paths$figures_dir, "requests_by_purpose.png"), p3, width = 8, height = 6, dpi = 300)
 }
 
@@ -564,7 +599,7 @@ if (nrow(requestor_by_purpose) > 0) {
     ) +
     theme_light() +
     theme(legend.position = "bottom")
-
+  
   ggsave(
     file.path(paths$figures_dir, "requestor_by_purpose_stacked.png"),
     p_purpose_stacked,
@@ -589,7 +624,7 @@ if (nrow(top_requestor_lemmas) > 0) {
     ) +
     theme_light() +
     theme(panel.spacing = unit(1.5, "lines"))
-
+  
   ggsave(
     file.path(paths$figures_dir, "top_lemmas_by_requestor_faceted.png"),
     p_top_lemmas_faceted,
@@ -616,7 +651,7 @@ if (nrow(requests_by_day_hour) > 0) {
     ) +
     theme_minimal() +
     theme(panel.grid = element_blank())
-
+  
   ggsave(
     file.path(paths$figures_dir, "requests_heatmap_by_hour.png"),
     p_heatmap,
@@ -648,7 +683,7 @@ if (export_csvs && length(tables_to_export_clean) > 0) {
     ~ write_pretty_csv(
       df = .x,
       filename = janitor::make_clean_names(.y),
-      csv_dir = csv_dir
+      csv_dir = paths$csv_dir
     )
   )
   

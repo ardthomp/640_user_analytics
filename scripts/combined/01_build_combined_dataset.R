@@ -33,8 +33,7 @@ source(here("scripts", "shared", "reference_data_loaders.R"))
 
 analysis_years <- c(2025, 2026)
 
-paths <- make_output_paths("text_analysis")
-csv_dir <- paths$csv_dir
+paths <- make_output_paths("combined")
 
 combined_rds_path <- here("data", "processed", "combined_analysis_data.rds")
 
@@ -47,7 +46,7 @@ if (!dir.exists(dirname(combined_rds_path))) {
 export_text_inventory_csvs <- FALSE
 
 if (export_text_inventory_csvs) {
-  clear_output_folder(csv_dir, "\\.csv$")
+  clear_output_folder(paths$csv_dir, "\\.csv$")
 }
 
 # Compatibility helpers ----------------------------------------------------
@@ -644,22 +643,22 @@ phrase_lemma_candidates <- bind_rows(
 # Optional text inventory CSV exports --------------------------------------
 
 if (export_text_inventory_csvs) {
-  write_pretty_csv(all_research_topics_full, "all_research_topics_full", csv_dir)
+  write_pretty_csv(all_research_topics_full, "all_research_topics_full", paths$csv_dir)
   
   write_pretty_csv(
     all_research_topics_full %>%
       count(research_topic, sort = TRUE, name = "n_records"),
     "all_research_topics_counts",
-    csv_dir
-  )
+    paths$csv_dir)
   
-  write_pretty_csv(tidy_lemmas_all, "all_lemma_records_full", csv_dir)
-  write_pretty_csv(all_lemmas, "all_lemmas", csv_dir)
-  write_pretty_csv(top_500_lemmas, "top_500_lemmas", csv_dir)
-  write_pretty_csv(lemma_counts_by_source, "lemma_counts_by_source", csv_dir)
-  write_pretty_csv(lemma_counts_by_campus, "lemma_counts_by_campus", csv_dir)
-  write_pretty_csv(lemma_counts_by_requestor, "lemma_counts_by_requestor", csv_dir)
-  write_pretty_csv(phrase_lemma_candidates, "phrase_lemma_candidates", csv_dir)
+  
+  write_pretty_csv(tidy_lemmas_all, "all_lemma_records_full", paths$csv_dir)
+  write_pretty_csv(all_lemmas, "all_lemmas", paths$csv_dir)
+  write_pretty_csv(top_500_lemmas, "top_500_lemmas", paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_source, "lemma_counts_by_source", paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_campus, "lemma_counts_by_campus", paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_requestor, "lemma_counts_by_requestor", paths$csv_dir)
+  write_pretty_csv(phrase_lemma_candidates, "phrase_lemma_candidates", paths$csv_dir)
 }
 
 # Save final object for report script --------------------------------------
@@ -705,7 +704,7 @@ cat("Unique lemmas:", n_distinct(tidy_lemmas_all$lemma), "\n")
 cat("Phrase/lemma candidates:", nrow(phrase_lemma_candidates), "\n")
 
 if (export_text_inventory_csvs) {
-  cat("Text inventory CSVs written to:", csv_dir, "\n")
+  cat("Text inventory CSVs written to:", paths$csv_dir, "\n")
 } else {
   cat("Text inventory CSV export skipped. Set export_text_inventory_csvs <- TRUE to write CSVs.\n")
 }
