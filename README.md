@@ -4,7 +4,7 @@ This project analyzes hospital library service requests across a large hospital 
 
 ---
 
-# Project Overview
+## Project Overview
 
 The analysis focuses on:
 
@@ -38,7 +38,7 @@ Outputs include:
 
 ---
 
-# Project Structure
+## Project Structure
 
 ```text
 data/              ❗private raw and processed data (not tracked)
@@ -81,15 +81,15 @@ README.md
 
 ---
 
-# Data Sources
+## Data Sources
 
 ❗Due to institutional restrictions, raw data files are not included in this repository.
 
-## Legacy HUMC dataset (2013–2025)
+### Legacy HUMC dataset (2013–2025)
 
 The legacy HUMC dataset contains more than 5,800 literature search requests collected over multiple years. These records rely heavily on free-text fields and include inconsistent formatting, abbreviations, and terminology across time periods.
 
-## HMH structured dataset (2025–present)
+### HMH structured dataset (2025–present)
 
 The newer HMH dataset includes standardized request forms with structured variables such as:
 
@@ -101,14 +101,14 @@ The newer HMH dataset includes standardized request forms with structured variab
 
 As of 2026, the structured dataset includes both literature search requests and article/chapter requests conducted across the HMH network.
 
-## Important Notes
+### Important Notes
 - Some legacy logs contain inconsistent formatting and missing values
 - Requestor categories are standardized but raw fields may be incomplete
 - “Unknown/Not specified” reflects missing or unmapped values
 
 ---
 
-# Methods
+## Methods
 
 All analyses were conducted in R using modular script-based workflows.
 
@@ -128,7 +128,7 @@ Shared helper scripts are used throughout the project to standardize:
 - Text preprocessing
 - Reference data loading
 
-## Text analysis workflow
+### Text analysis workflow
 
 Research topic text was normalized using:
 
@@ -147,7 +147,7 @@ The workflow:
 
 The scripts also generate updated n-gram and phrase candidate lists to support ongoing refinement of the phrase dictionary.
 
-## Modeling and trend analysis
+### Modeling and trend analysis
 
 The project includes several analytical approaches beyond descriptive summaries, including:
 
@@ -159,16 +159,16 @@ The project includes several analytical approaches beyond descriptive summaries,
 
 ---
 
-# Reproducing the analysis
+## Reproducing the analysis
 
-- 1. Clone this repository
-- 2. Open the project .Rproj file in RStudio
-- 3. Restore the package environment:
+1. Clone this repository
+2. Open the project .Rproj file in RStudio
+3. Restore the package environment:
 ```text
 renv::restore()
 ```
-- 4. Add required private datasets to the data/ directory
-- 5. Run:
+4. Add required private datasets to the data/ directory
+5. Run:
 ```text
 source("run_all_analyses.R")
 ```
@@ -186,7 +186,7 @@ This will run the full pipeline:
 
 ---
 
-# Outputs
+## Outputs
 
 Scripts generate:
 
@@ -197,11 +197,11 @@ Scripts generate:
 
 Outputs are written automatically to structured subdirectories within outputs/.
 
-Generated outputs and private institutional data are excluded from version control using .gitignore.
+❗ Generated outputs and private institutional data are excluded from version control using .gitignore.
 
 --- 
 
-# Reproducibility and workflow
+## Reproducibility and workflow
 
 Reproducibility and workflow
 
@@ -216,7 +216,7 @@ The workflow was developed iteratively using both standard R development practic
 
 ---
 
-# Limitations
+## Limitations
 
 Because the underlying datasets contain protected institutional information, the raw data and some reference files cannot be shared publicly. External users may therefore be unable to fully reproduce the analyses without access to the original data sources.
 
@@ -224,7 +224,7 @@ In addition, the project relies heavily on cleaning and standardizing free-text 
 
 ---
 
-# Future directions
+## Future directions
 
 - Integration of medical school library data
 - Expanded workload modeling
