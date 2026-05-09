@@ -1,67 +1,175 @@
 # Hospital Library User Analytics
 
-This project analyzes literature search and article request activity across a large hospital network, with a focus on its flagship campus and system-wide usage patterns.
-
-The goal is to understand demand, workload, and research topics using structured logs and text analysis (lemmatization + categorization).
+This project analyzes hospital library service requests across a large hospital network using reproducible R workflows. The goal is to understand request patterns, workload, research topics, and information needs across the hospital system through operational analytics, text analysis, and statistical modeling. 
 
 ---
 
-## Overview
+# Project Overview
 
-This pipeline:
+The analysis focuses on:
 
-- Combines multi-year HUMC legacy logs (2013–2025)
-- Integrates HMH shared-form data (2025–present)
-- Standardizes request metadata (date, campus, requestor, purpose)
-- Processes research topics using text normalization and lemmatization
-- Generates summary tables, figures, and a combined report
+- Literature search requests
+- Article/chapter requests
+- Research topic text analysis, including phrase normalization and lemmatization
+- TF-IDF comparisons across requestor groups and purposes
+- Workload and effort-level analysis
+- Request trends across time
+- Longitudinal and seasonal demand analysis
+- Retrieval source analysis for article/chapter requests
+
+Analytical methods include:
+
+- Descriptive summaries
+- TF-IDF analysis
+- Chi-squared testing
+- Ordinal logistic regression
+- Time series analysis
+- Biomedical text preprocessing and lemmatization
+
+Outputs include:
+
+- Lemma frequency counts
+- TF-IDF comparisons across groups
+- Category-level summaries
+- Phrase/lemma candidates for iterative refinement
+- Excel summary workbooks
+- Presentation-ready figures
+- Formatted tables for reporting and presentation use
 
 ---
 
-## Project Structure
+# Project Structure
 
 ```text
+data/              ❗private raw and processed data (not tracked)
+outputs/           ❗generated figures and tables (not tracked)
+
+docs/
+    data_dictionary.md
+    
+renv/              ❗project package environment
+
 scripts/
-  humc/
-    00_build_humc_master_csv.R
-    01_build_analysis_object.R
-    02_generate_tables.R
-    03_generate_figures.R
+    combined/
+        01_build_combined_dataset.R
+        02_generate_combined_report.R
+    hmh/
+        run_hmh_article_request_analysis.R
+        run_hmh_literature_search_analysis.R
+    humc/
+        00_build_humc_master_csv.R
+        01_build_analysis_object.R
+        02_generate_tables.R
+        03_generate_figures.R
+    optional_models/
+        combined_01_time_series_patterns.R
+        hmh_01_effort_level_requestor_model.R
+        humc_01_citation_count_prediction_model.R
+        humc_02_longitudinal_time_series.R
+    shared/
+        helpers.R
+        output_helpers.R
+        paths.R
+        plotting_helpers.R
+        reference_data_loaders.R
+        text_helpers.R
 
-  hmh/
-    run_hmh_literature_search_analysis.R
-    run_hmh_article_request_analysis.R
+run_all_analyses.R   ❗master analysis script
+README.md
 
-  combined/
-    01_build_combined_dataset.R
-    02_generate_combined_report.R
-
-  shared/
-    helpers.R
-    text_helpers.R
-    output_helpers.R
-    reference_data_loaders.R
-    paths.R
-
-data/
-  raw/        # original files (not tracked)
-  processed/  # cleaned datasets
-
-outputs/
-  humc/
-  combined/
 ```
 
 ---
 
-## Overview
+# Data Sources
 
-### How to Run
+❗Due to institutional restrictions, raw data files are not included in this repository.
 
-From the project root in R:
+## Legacy HUMC dataset (2013–2025)
 
+The legacy HUMC dataset contains more than 5,800 literature search requests collected over multiple years. These records rely heavily on free-text fields and include inconsistent formatting, abbreviations, and terminology across time periods.
+
+## HMH structured dataset (2025–present)
+
+The newer HMH dataset includes standardized request forms with structured variables such as:
+
+- Request type
+- Requestor role
+- Campus affiliation
+- Time spent on requests
+- Article/chapter retrieval source
+
+As of 2026, the structured dataset includes both literature search requests and article/chapter requests conducted across the HMH network.
+
+## Important Notes
+- Some legacy logs contain inconsistent formatting and missing values
+- Requestor categories are standardized but raw fields may be incomplete
+- “Unknown/Not specified” reflects missing or unmapped values
+
+---
+
+# Methods
+
+All analyses were conducted in R using modular script-based workflows.
+
+The project uses separate scripts for:
+
+- Data cleaning
+- Text processing
+- Statistical analysis
+- Figure generation
+- Export workflows
+
+Shared helper scripts are used throughout the project to standardize:
+
+- Paths and directory creation
+- Plot styling
+- Export formatting
+- Text preprocessing
+- Reference data loading
+
+## Text analysis workflow
+
+Research topic text was normalized using:
+
+- Phrase preservation rules (phrases.csv)
+- BioLemmatizer
+- tidytext
+- Custom merge mappings (custom_merges.csv)
+
+The workflow:
+
+- Cleans and normalizes free-text research topics
+- Preserves meaningful biomedical phrases before tokenization
+- Tokenizes and lemmatizes text
+- Applies custom mappings to merge equivalent terms
+- Rejoins processed text with structured metadata for downstream analysis
+
+The scripts also generate updated n-gram and phrase candidate lists to support ongoing refinement of the phrase dictionary.
+
+## Modeling and trend analysis
+
+The project includes several analytical approaches beyond descriptive summaries, including:
+
+- Ordinal logistic regression models examining effort level by requestor group
+- Comparative workload analysis using time-spent categories
+- TF-IDF comparisons across patron groups and request purposes
+- Longitudinal time series analysis of request activity
+- Seasonal trend analysis across years
+
+---
+
+# Reproducing the analysis
+
+- 1. Clone this repository
+- 2. Open the project .Rproj file in RStudio
+- 3. Restore the package environment:
 ```text
-setwd("path/to/thompson_user_analytics")
+renv::restore()
+```
+- 4. Add required private datasets to the data/ directory
+- 5. Run:
+```text
 source("run_all_analyses.R")
 ```
 
@@ -74,64 +182,60 @@ This will run the full pipeline:
 - Build combined dataset
 - Generate combined report
 
-### Key Outputs
-
-HUMC report:
-- outputs/humc/humc_summary_report.xlsx
-
-Combined report:
-- outputs/combined/combined_summary_report.xlsx
-
-Figures:
-- outputs/figures/
-
-Formatted tables (HTML):
- - outputs/formatted_tables/
-
-### Text Analysis Pipeline
-
-Research topics are processed using:
-- Text cleaning (encoding fixes, punctuation removal)
-- Phrase collapsing (custom phrase dictionary)
-
-Lemmatization:
-- BioLemmatizer lexicon
-- fallback: textstem
-- custom overrides (custom_merges.csv)
-- Stop word removal
-- Category mapping (categories_long.xlsx)
-
-Outputs include:
-
-- Lemma counts
-- TF-IDF comparisons
-- Category summaries
-- Phrase/lemma candidates (for iterative refinement)
+❗Optional or exploratory models located in `scripts/optional_models/` are not run by the master pipeline and should be executed separately as needed.
 
 ---
 
-## Important Notes
-- Data files are not tracked in Git (see .gitignore)
-- Some legacy logs contain inconsistent formatting and missing values
-- Requestor categories are standardized but raw fields may be incomplete
-- “Unknown/Not specified” reflects missing or unmapped values
+# Outputs
+
+Scripts generate:
+
+- CSV summary tables
+- Excel workbooks
+- HTML formatted tables
+- PNG figures for reports and posters
+
+Outputs are written automatically to structured subdirectories within outputs/.
+
+Generated outputs and private institutional data are excluded from version control using .gitignore.
+
+--- 
+
+# Reproducibility and workflow
+
+Reproducibility and workflow
+
+The project uses:
+
+- renv for package management
+- Git/GitHub for version control
+- Modular helper scripts for reusable workflows
+- Structured output directories for reproducibility
+
+The workflow was developed iteratively using both standard R development practices and AI-assisted support tools for coding, troubleshooting, and interpretation of analytical results.
 
 ---
 
-## Recent Updates
-- Refactored helper functions and standardized pipelines
-- Simplified output system (removed archived CSV workflow)
-- Improved requestor classification and auditability
-- Rebuilt combined dataset and reporting workflow
-- Cleaned repository (removed OS files, normalized line endings)
+# Limitations
+
+Because the underlying datasets contain protected institutional information, the raw data and some reference files cannot be shared publicly. External users may therefore be unable to fully reproduce the analyses without access to the original data sources.
+
+In addition, the project relies heavily on cleaning and standardizing free-text biomedical language, which requires ongoing maintenance of phrase dictionaries and custom mappings.
 
 ---
 
-## Future Improvements
-- Improve requestor classification coverage
+# Future directions
+
+- Integration of medical school library data
+- Expanded workload modeling
+- Additional longitudinal forecasting
+- Improved automated categorization workflows
 - Expand phrase dictionary for better topic grouping
-- Add longitudinal trend analysis across HUMC + HMH
-- Improve visualization styling for presentation use
+- Improve visualization styling
+- Publication of methods and findings in the health sciences library literature
+
+More broadly, the project demonstrates how hospital libraries can use operational data to better understand user needs, evaluate services, and support institutional decision-making.
+
 
 ---
 
@@ -142,6 +246,7 @@ Outputs include:
 All rights reserved. This repository is provided for viewing and educational purposes only.
 
 It contains original analytic workflows developed for hospital library data analysis.  
+
 No reuse, distribution, or derivative use is permitted without prior written permission.
 
-See the LICENSE file for full terms.
+❗ See the LICENSE file for full terms.
