@@ -89,6 +89,7 @@ README.md
 
 The legacy HUMC dataset contains more than 5,800 literature search requests collected over multiple years. These records rely heavily on free-text fields and include inconsistent formatting, abbreviations, and terminology across time periods.
 
+
 ### HMH structured dataset (2025–present)
 
 The newer HMH dataset includes standardized request forms with structured variables such as:
@@ -100,6 +101,7 @@ The newer HMH dataset includes standardized request forms with structured variab
 - Article/chapter retrieval source
 
 As of 2026, the structured dataset includes both literature search requests and article/chapter requests conducted across the HMH network.
+
 
 ### ❗Important Notes
 - Some legacy logs contain inconsistent formatting and missing values
@@ -128,14 +130,15 @@ Shared helper scripts are used throughout the project to standardize:
 - Text preprocessing
 - Reference data loading
 
+
 ### Text analysis workflow
 
 Research topic text was normalized using:
 
-- Phrase preservation rules (phrases.csv)
+- Phrase preservation rules (`phrases.csv`)
 - BioLemmatizer
-- tidytext
-- Custom merge mappings (custom_merges.csv)
+- `tidytext`
+- Custom merge mappings (`custom_merges.csv`)
 
 The workflow:
 
@@ -146,6 +149,7 @@ The workflow:
 - Rejoins processed text with structured metadata for downstream analysis
 
 The scripts also generate updated n-gram and phrase candidate lists to support ongoing refinement of the phrase dictionary.
+
 
 ### Modeling and trend analysis
 
@@ -162,14 +166,14 @@ The project includes several analytical approaches beyond descriptive summaries,
 ## ⭐ Reproducing the analysis
 
 1. Clone this repository
-2. Open the project .Rproj file in RStudio
+2. Open the project `.Rproj` file in RStudio
 3. Restore the package environment:
-```text
+```r
 renv::restore()
 ```
-4. Add required private datasets to the data/ directory
+4. Add required private datasets to the `data/` directory
 5. Run:
-```text
+```r
 source("run_all_analyses.R")
 ```
 
@@ -186,9 +190,9 @@ Scripts generate:
 - HTML formatted tables
 - PNG figures for reports and posters
 
-Outputs are written automatically to structured subdirectories within outputs/.
+Outputs are written automatically to structured subdirectories within `outputs/`.
 
-❗ Generated outputs and private institutional data are excluded from version control using .gitignore.
+❗ Generated outputs and private institutional data are excluded from version control using `.gitignore`.
 
 --- 
 
@@ -196,7 +200,7 @@ Outputs are written automatically to structured subdirectories within outputs/.
 
 The project uses:
 
-- renv for package management
+- `renv` for package management
 - Git/GitHub for version control
 - Modular helper scripts for reusable workflows
 - Structured output directories for reproducibility
@@ -234,4 +238,4 @@ In addition, the project relies heavily on cleaning and standardizing free-text 
 
 All rights reserved. This repository is provided for viewing and educational purposes only. It contains original analytic workflows developed for hospital library data analysis. No reuse, distribution, or derivative use is permitted without prior written permission.
 
-❗ See the LICENSE file for full terms.
+❗ See the `LICENSE` file for full terms.
