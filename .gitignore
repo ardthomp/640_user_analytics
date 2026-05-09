@@ -14,7 +14,7 @@ data/
 outputs/
 outputs/combined/poster_figures/
 poster.R
-session_info.txt
+docs/session_info.txt
 
 
 # Do not track generated / processed analysis files anywhere
