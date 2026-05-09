@@ -173,15 +173,6 @@ renv::restore()
 source("run_all_analyses.R")
 ```
 
-This will run the full pipeline:
-
-- Build HUMC dataset
-- Create HUMC analysis object
-- Generate HUMC tables + figures
-- Run HMH analyses
-- Build combined dataset
-- Generate combined report
-
 ❗Optional or exploratory models located in `scripts/optional_models/` are not run by the master pipeline and should be executed separately as needed.
 
 ---
