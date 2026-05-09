@@ -4,7 +4,7 @@ This project analyzes hospital library service requests across a large hospital 
 
 ---
 
-## Project Overview
+## ⭐ Project Overview
 
 The analysis focuses on:
 
@@ -38,7 +38,7 @@ Outputs include:
 
 ---
 
-## Project Structure
+## ⭐ Project Structure
 
 ```text
 data/              ❗private raw and processed data (not tracked)
@@ -81,7 +81,7 @@ README.md
 
 ---
 
-## Data Sources
+## ⭐ Data Sources
 
 ❗Due to institutional restrictions, raw data files are not included in this repository.
 
@@ -101,14 +101,14 @@ The newer HMH dataset includes standardized request forms with structured variab
 
 As of 2026, the structured dataset includes both literature search requests and article/chapter requests conducted across the HMH network.
 
-### Important Notes
+### ❗Important Notes
 - Some legacy logs contain inconsistent formatting and missing values
 - Requestor categories are standardized but raw fields may be incomplete
 - “Unknown/Not specified” reflects missing or unmapped values
 
 ---
 
-## Methods
+## ⭐ Methods
 
 All analyses were conducted in R using modular script-based workflows.
 
@@ -159,7 +159,7 @@ The project includes several analytical approaches beyond descriptive summaries,
 
 ---
 
-## Reproducing the analysis
+## ⭐ Reproducing the analysis
 
 1. Clone this repository
 2. Open the project .Rproj file in RStudio
@@ -186,7 +186,7 @@ This will run the full pipeline:
 
 ---
 
-## Outputs
+## ⭐ Outputs
 
 Scripts generate:
 
@@ -201,9 +201,7 @@ Outputs are written automatically to structured subdirectories within outputs/.
 
 --- 
 
-## Reproducibility and workflow
-
-Reproducibility and workflow
+## ⭐ Reproducibility and workflow
 
 The project uses:
 
@@ -212,11 +210,11 @@ The project uses:
 - Modular helper scripts for reusable workflows
 - Structured output directories for reproducibility
 
-The workflow was developed iteratively using both standard R development practices and AI-assisted support tools for coding, troubleshooting, and interpretation of analytical results.
+The workflow was developed iteratively using both standard R development practices and the hospital's AI-assisted support tools for coding, troubleshooting, and interpretation of analytical results.
 
 ---
 
-## Limitations
+## 😔 Limitations
 
 Because the underlying datasets contain protected institutional information, the raw data and some reference files cannot be shared publicly. External users may therefore be unable to fully reproduce the analyses without access to the original data sources.
 
@@ -224,7 +222,7 @@ In addition, the project relies heavily on cleaning and standardizing free-text 
 
 ---
 
-## Future directions
+## 🔮 Future directions
 
 - Integration of medical school library data
 - Expanded workload modeling
@@ -234,19 +232,15 @@ In addition, the project relies heavily on cleaning and standardizing free-text 
 - Improve visualization styling
 - Publication of methods and findings in the health sciences library literature
 
-More broadly, the project demonstrates how hospital libraries can use operational data to better understand user needs, evaluate services, and support institutional decision-making.
+✨ More broadly, the project demonstrates how hospital libraries can use operational data to better understand user needs, evaluate services, and support institutional decision-making. ✨
 
 
 ---
 
-## License
+## ✅ License
 
-© Andrea Thompson 2026
+©️ Andrea Thompson 2026
 
-All rights reserved. This repository is provided for viewing and educational purposes only.
-
-It contains original analytic workflows developed for hospital library data analysis.  
-
-No reuse, distribution, or derivative use is permitted without prior written permission.
+All rights reserved. This repository is provided for viewing and educational purposes only. It contains original analytic workflows developed for hospital library data analysis. No reuse, distribution, or derivative use is permitted without prior written permission.
 
 ❗ See the LICENSE file for full terms.
