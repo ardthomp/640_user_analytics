@@ -94,10 +94,6 @@ if (run_humc_historical_text) {
   run_script("scripts/humc/04_analyze_humc_historical_text_topics.R")
 }
 
-if (run_humc_longitudinal_time_series) {
-  run_script("scripts/humc/05_analyze_humc_longitudinal_time_series.R")
-}
-
 # HMH network pipeline ------------------------------------------------------
 
 if (run_hmh_network_build) {
@@ -124,8 +120,9 @@ if (run_hmh_text_topics) {
 
 if (run_optional_models) {
   run_script("scripts/optional_models/humc_01_citation_count_prediction_model.R")
-  run_script("scripts/optional_models/hmh_01_effort_level_requestor_model.R")
-  run_script("scripts/optional_models/hmh_02_network_time_series_patterns.R")
+  run_script("scripts/optional_models/humc_02_longitudinal_time_series.R")
+  run_script("scripts/optional_models/hmh_01_time_series_analysis.R")
+  run_script("scripts/optional_models/hmh_02_effort_level_by_requestor_model.R")
 }
 
 cat("\n=================================================================\n")

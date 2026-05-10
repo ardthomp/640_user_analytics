@@ -21,7 +21,7 @@ out <- readRDS(out_path)
 model_output_dir <- here(
   "outputs",
   "optional_models",
-  "humc_01_citation_count_prediction"
+  "humc_01_citation_count_prediction_model"
 )
 
 figures_dir <- file.path(model_output_dir, "figures")

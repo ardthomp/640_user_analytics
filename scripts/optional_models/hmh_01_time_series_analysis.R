@@ -6,7 +6,7 @@
 #   3. See whether certain lemmas become more/less common by month
 #
 # Output:
-#   outputs/optional_models/hmh_01_time_series_patterns/
+#   outputs/optional_models/hmh_01_time_series_analysis/
 #     figures/
 #     tables/
 
@@ -25,7 +25,7 @@ source(here("scripts", "shared", "output_helpers.R"))
 analysis_output_dir <- here(
   "outputs",
   "optional_models",
-  "hmh_01_time_series_patterns"
+  "hmh_01_time_series_analysis"
 )
 
 figures_dir <- file.path(analysis_output_dir, "figures")

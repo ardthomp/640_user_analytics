@@ -16,7 +16,7 @@ source(here("scripts", "shared", "output_helpers.R"))
 model_output_dir <- here(
   "outputs",
   "optional_models",
-  "hmh_02_effort_level_requestor_model"
+  "hmh_02_effort_level_by_requestor_model"
 )
 
 figures_dir <- file.path(model_output_dir, "figures")
