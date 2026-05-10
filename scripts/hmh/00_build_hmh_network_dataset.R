@@ -1,17 +1,17 @@
-# scripts/combined/01_build_combined_dataset.R
+# scripts/hmh/00_build_hmh_network_dataset.R
 #
-# Build the combined HUMC + HMH analysis dataset.
+# Build the HMH network literature search analysis dataset.
 #
 # Purpose:
 #   1. Read HUMC legacy-form data and HMH shared-form data.
 #   2. Standardize dates, campus names, requestor categories, purposes, and workload fields.
-#   3. Build the request-level combined dataset used by 02_generate_combined_report.R.
+#   3. Build the request-level network dataset used by the HMH analysis scripts.
 #   4. Build the text/lemma inventory using phrases.csv, custom_merges.csv, and lexicon.lex.
 #   5. Build phrase/lemma candidates while excluding terms already in phrases.csv/custom_merges.csv.
-#   6. Save one RDS object that the combined report script can load quickly.
+#   6. Save one RDS object that the HMH network analysis scripts can load quickly.
 #
 # Run:
-#   source("scripts/combined/01_build_combined_dataset.R")
+#   source("scripts/hmh/00_build_hmh_network_dataset.R")
 
 # Setup --------------------------------------------------------------------
 
@@ -33,12 +33,12 @@ source(here("scripts", "shared", "reference_data_loaders.R"))
 
 analysis_years <- c(2025, 2026)
 
-paths <- make_output_paths("combined")
+paths <- make_output_paths(file.path("hmh", "text_topics"))
 
-combined_rds_path <- here("data", "processed", "combined_analysis_data.rds")
+hmh_network_rds_path <- here("data", "processed", "hmh_network_analysis_data.rds")
 
-if (!dir.exists(dirname(combined_rds_path))) {
-  dir.create(dirname(combined_rds_path), recursive = TRUE)
+if (!dir.exists(dirname(hmh_network_rds_path))) {
+  dir.create(dirname(hmh_network_rds_path), recursive = TRUE)
 }
 
 # Export settings ----------------------------------------------------------
@@ -663,7 +663,7 @@ if (export_text_inventory_csvs) {
 
 # Save final object for report script --------------------------------------
 
-combined_analysis_data <- list(
+hmh_network_analysis_data <- list(
   analysis_years = analysis_years,
   combined_dat = combined_dat,
   combined_form_dat = combined_form_dat,
@@ -686,13 +686,13 @@ combined_analysis_data <- list(
 )
 
 saveRDS(
-  object = combined_analysis_data,
-  file = combined_rds_path
+  object = hmh_network_analysis_data,
+  file = hmh_network_rds_path
 )
 
 # Console summary ----------------------------------------------------------
 
-cat("\n--- Combined Dataset Build Complete ---\n")
+cat("\n--- HMH Network Dataset Build Complete ---\n")
 cat("Request-level rows:", nrow(combined_dat), "\n")
 cat("HUMC rows:", nrow(humc_dat), "\n")
 cat("HMH rows:", nrow(hmh_dat), "\n")
@@ -709,4 +709,4 @@ if (export_text_inventory_csvs) {
   cat("Text inventory CSV export skipped. Set export_text_inventory_csvs <- TRUE to write CSVs.\n")
 }
 
-cat("Combined analysis object saved to:", combined_rds_path, "\n")
+cat("HMH network analysis object saved to:", hmh_network_rds_path, "\n")

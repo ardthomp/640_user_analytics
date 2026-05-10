@@ -92,9 +92,9 @@ get_top_lemmas <- function(data_norm, top_n = 300) {
 standardize_submitter_type <- function(attending, med_ed, nurse, other_provider, committee) {
   case_when(
     nurse == 1 ~ "Nurse",
-    other_provider == 1 ~ "OtherProvider",
+    other_provider == 1 ~ "AlliedHealthProfessional",
     attending == 1 ~ "Attending",
-    med_ed == 1 ~ "MedEd",
+    med_ed == 1 ~ "Resident",
     committee == 1 ~ "Committee",
     TRUE ~ "Unknown"
   )

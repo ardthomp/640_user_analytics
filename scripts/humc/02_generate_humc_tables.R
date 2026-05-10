@@ -9,10 +9,10 @@
 #     3. optional CSV exports, if export_csvs is set to TRUE
 #
 # Run after:
-#   source("scripts/humc/01_build_analysis_object.R")
+#   source("scripts/humc/01_build_humc_analysis_object.R")
 #
 # Then run:
-#   source("scripts/humc/03_generate_figures.R")
+#   source("scripts/humc/03_generate_humc_figures.R")
 
 # Setup --------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ export_workbook <- TRUE
 # Check inputs --------------------------------------------------------------
 
 if (!file.exists(out_path)) {
-  stop("Cannot find ", out_path, ". Run 01_build_analysis_object.R first.")
+  stop("Cannot find ", out_path, ". Run 01_build_humc_analysis_object.R first.")
 }
 
 # Clear only the outputs this script will recreate -------------------------

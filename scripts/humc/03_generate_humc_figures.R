@@ -22,9 +22,9 @@ figures_dir <- paths$figures_dir
 out_path <- file.path(output_dir, "out.rds")
 
 required_rds <- c(file.path(csv_dir, "cat_purp.rds"), file.path(csv_dir, "category_chi_results.rds"), file.path(csv_dir, "purpose_results.rds"))
-if (!file.exists(out_path)) stop("Cannot find ", out_path, ". Run 01_build_analysis_object.R first.")
+if (!file.exists(out_path)) stop("Cannot find ", out_path, ". Run 01_build_humc_analysis_object.R first.")
 missing_rds <- required_rds[!file.exists(required_rds)]
-if (length(missing_rds) > 0) stop("Missing table RDS files:\n", paste(missing_rds, collapse = "\n"), "\nRun 02_generate_tables.R first.")
+if (length(missing_rds) > 0) stop("Missing table RDS files:\n", paste(missing_rds, collapse = "\n"), "\nRun 02_generate_humc_tables.R first.")
 
 # Ensure folder exists + clear old figures --------------------------
 
@@ -45,7 +45,7 @@ purpose_residuals_plot <- purpose_results$purpose_residuals %>%
   mutate(
     submitter_type = case_when(
       submitter_type == "MedEd" ~ "Resident",
-      submitter_type == "OtherProvider" ~ "Allied Health Provider",
+      submitter_type %in% c("OtherProvider", "AlliedHealthProfessional") ~ "Allied Health Professional",
       TRUE ~ submitter_type
     ),
     submitter_type = factor(
@@ -54,7 +54,7 @@ purpose_residuals_plot <- purpose_results$purpose_residuals %>%
         "Attending",
         "Resident",
         "Nurse",
-        "Allied Health Provider",
+        "Allied Health Professional",
         "Unknown"
       )
     ),
@@ -66,7 +66,8 @@ purpose_residuals_plot <- purpose_results$purpose_residuals %>%
       "IRBApp" = "IRB App",
       .default = purpose
     )
-  )
+  ) %>%
+  filter(!is.na(submitter_type))
 
 top_lemmas_person <- out$lemma_counts_by_person %>%
   filter(!submitter_type %in% c("Committee", "Unknown", "Committee/Unknown")) %>%
@@ -80,7 +81,7 @@ if (nrow(top_lemmas_person) > 0) {
     mutate(
       submitter_plot = case_when(
         submitter_type == "MedEd" ~ "Resident",
-        submitter_type == "OtherProvider" ~ "Allied Health Provider",
+        submitter_type %in% c("OtherProvider", "AlliedHealthProfessional") ~ "Allied Health Professional",
         TRUE ~ submitter_type
       ),
       submitter_plot = factor(
@@ -89,7 +90,7 @@ if (nrow(top_lemmas_person) > 0) {
           "Attending",
           "Resident",
           "Nurse",
-          "Allied Health Provider"
+          "Allied Health Professional"
         )
       )
     ) %>%

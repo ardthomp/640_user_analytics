@@ -1,22 +1,14 @@
 # run_all_analyses.R
 #
-# Master runner for the user analytics project.
+# Master runner for the refactored hospital library user analytics project.
 #
 # Purpose:
-#   Run the main HUMC, HMH, and combined analysis scripts in the correct order.
+#   Run the HUMC historical pipeline and the HMH network pipeline in a clearer
+#   order. HUMC historical text analysis stays separate from the HMH network
+#   text analysis, but both use the same shared reference files.
 #
 # How to use:
 #   source("run_all_analyses.R")
-#
-# Notes:
-#   - Data and outputs are intentionally ignored by Git.
-#   - Individual scripts control whether CSVs are exported.
-#   - By default, this runner rebuilds the main analysis outputs but does not
-#     run optional long-term legacy trend figures unless run_humc_legacy_trends
-#     is set to TRUE.
-#   - Use renv::snapshot() in console to update renv.lock file
-
-# Setup --------------------------------------------------------------------
 
 libs <- c(
   "tidyverse",
@@ -24,7 +16,13 @@ libs <- c(
   "janitor",
   "lubridate",
   "readxl",
-  "openxlsx"
+  "openxlsx",
+  "tidytext",
+  "textstem",
+  "stringi",
+  "gt",
+  "viridis",
+  "scales"
 )
 
 missing <- libs[!sapply(libs, requireNamespace, quietly = TRUE)]
@@ -45,14 +43,16 @@ run_humc_build <- TRUE
 run_humc_analysis_object <- TRUE
 run_humc_tables <- TRUE
 run_humc_figures <- TRUE
-run_humc_legacy_trends <- FALSE
-run_humc_model <- FALSE
+run_humc_historical_text <- TRUE
+run_humc_longitudinal_time_series <- FALSE
 
-run_hmh_literature_search <- TRUE
+run_hmh_network_build <- TRUE
+run_hmh_literature_searches <- TRUE
 run_hmh_article_requests <- TRUE
+run_hmh_overall_requests <- TRUE
+run_hmh_text_topics <- TRUE
 
-run_combined_build <- TRUE
-run_combined_report <- TRUE
+run_optional_models <- FALSE
 
 # Helper -------------------------------------------------------------------
 
@@ -72,63 +72,62 @@ run_script <- function(path) {
   cat("\nFinished:", path, "\n")
 }
 
-# HUMC pipeline -------------------------------------------------------------
+# HUMC historical pipeline --------------------------------------------------
 
 if (run_humc_build) {
   run_script("scripts/humc/00_build_humc_master_csv.R")
 }
 
 if (run_humc_analysis_object) {
-  run_script("scripts/humc/01_build_analysis_object.R")
+  run_script("scripts/humc/01_build_humc_analysis_object.R")
 }
 
 if (run_humc_tables) {
-  run_script("scripts/humc/02_generate_tables.R")
+  run_script("scripts/humc/02_generate_humc_tables.R")
 }
 
 if (run_humc_figures) {
-  run_script("scripts/humc/03_generate_figures.R")
+  run_script("scripts/humc/03_generate_humc_figures.R")
 }
 
-if (run_humc_legacy_trends) {
-  run_script("scripts/humc/04_trends_legacy.R")
+if (run_humc_historical_text) {
+  run_script("scripts/humc/04_analyze_humc_historical_text_topics.R")
 }
 
-if (run_humc_model) {
-  run_script("scripts/humc/04_model_citation_count.R")
+if (run_humc_longitudinal_time_series) {
+  run_script("scripts/humc/05_analyze_humc_longitudinal_time_series.R")
 }
 
-# HMH pipeline --------------------------------------------------------------
+# HMH network pipeline ------------------------------------------------------
 
-if (run_hmh_literature_search) {
-  run_script("scripts/hmh/run_hmh_literature_search_analysis.R")
+if (run_hmh_network_build) {
+  run_script("scripts/hmh/00_build_hmh_network_dataset.R")
+}
+
+if (run_hmh_literature_searches) {
+  run_script("scripts/hmh/01_analyze_hmh_literature_searches.R")
 }
 
 if (run_hmh_article_requests) {
-  run_script("scripts/hmh/run_hmh_article_request_analysis.R")
+  run_script("scripts/hmh/02_analyze_hmh_article_requests.R")
 }
 
-# Combined pipeline ---------------------------------------------------------
-
-if (run_combined_build) {
-  run_script("scripts/combined/01_build_combined_dataset.R")
+if (run_hmh_overall_requests) {
+  run_script("scripts/hmh/03_analyze_hmh_overall_requests.R")
 }
 
-if (run_combined_report) {
-  run_script("scripts/combined/02_generate_combined_report.R")
+if (run_hmh_text_topics) {
+  run_script("scripts/hmh/04_analyze_hmh_text_topics.R")
 }
 
-# Save session info --------------------------------------------------------
+# Optional models -----------------------------------------------------------
 
-dir.create(here::here("outputs"), showWarnings = FALSE, recursive = TRUE)
-
-sink(here::here("outputs", "session_info.txt"))
-sessionInfo()
-sink()
-
-# Done ---------------------------------------------------------------------
+if (run_optional_models) {
+  run_script("scripts/optional_models/humc_01_citation_count_prediction_model.R")
+  run_script("scripts/optional_models/hmh_01_effort_level_requestor_model.R")
+  run_script("scripts/optional_models/hmh_02_network_time_series_patterns.R")
+}
 
 cat("\n=================================================================\n")
 cat("All selected analyses complete.\n")
 cat("=================================================================\n")
-

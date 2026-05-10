@@ -1,4 +1,4 @@
-# Optional analysis: Combined time series and seasonality patterns -----------
+# Optional analysis: HMH network time series and seasonality patterns --------
 # This script is exploratory and does not run automatically in the main pipeline.
 # Goal:
 #   1. Look for seasonal patterns in request volume
@@ -6,7 +6,7 @@
 #   3. See whether certain lemmas become more/less common by month
 #
 # Output:
-#   outputs/optional_models/combined_01_time_series_patterns/
+#   outputs/optional_models/hmh_01_time_series_patterns/
 #     figures/
 #     tables/
 
@@ -25,7 +25,7 @@ source(here("scripts", "shared", "output_helpers.R"))
 analysis_output_dir <- here(
   "outputs",
   "optional_models",
-  "combined_01_time_series_patterns"
+  "hmh_01_time_series_patterns"
 )
 
 figures_dir <- file.path(analysis_output_dir, "figures")
@@ -40,42 +40,37 @@ clear_output_folder(
 )
 
 # Load combined data --------------------------------------------------------
-# The combined pipeline is part of your repo structure, so this script reads
-# from outputs/combined rather than rebuilding the combined dataset.
+# This script reads the harmonized HMH network dataset created by
+# scripts/hmh/00_build_hmh_network_dataset.R.
 
-# Load combined data --------------------------------------------------------
-
-combined_rds_path <- here(
+hmh_network_rds_path <- here(
   "data",
   "processed",
-  "combined_analysis_data.rds"
+  "hmh_network_analysis_data.rds"
 )
 
-if (!file.exists(combined_rds_path)) {
-  stop("Could not find data/processed/combined_analysis_data.rds. Run scripts/combined/01_build_combined_dataset.R first.")
+if (!file.exists(hmh_network_rds_path)) {
+  stop("Could not find data/processed/hmh_network_analysis_data.rds. Run scripts/hmh/00_build_hmh_network_dataset.R first.")
 }
 
-combined_objects <- readRDS(combined_rds_path)
-
-combined_dat <- combined_objects$combined_dat
-tidy_lemmas_all <- combined_objects$tidy_lemmas_all
+hmh_network_objects <- readRDS(hmh_network_rds_path)
 
 # Pull the combined structured dataset.
 # This assumes the object is stored as combined_dat. If your RDS uses another
 # name, this gives a clear error instead of failing later.
 
-if ("combined_dat" %in% names(combined_objects)) {
-  combined_dat <- combined_objects$combined_dat
+if ("combined_dat" %in% names(hmh_network_objects)) {
+  hmh_network_dat <- hmh_network_objects$combined_dat
 } else {
-  stop("The combined RDS does not contain an object named combined_dat.")
+  stop("The HMH network RDS does not contain an object named combined_dat.")
 }
 
 # Pull lemma-level data if it is already saved in the combined object.
 # If not, the script will skip lemma seasonality and still run the volume and
 # requestor-group sections.
 
-if ("tidy_lemmas_all" %in% names(combined_objects)) {
-  tidy_lemmas_all <- combined_objects$tidy_lemmas_all
+if ("tidy_lemmas_all" %in% names(hmh_network_objects)) {
+  tidy_lemmas_all <- hmh_network_objects$tidy_lemmas_all
 } else {
   tidy_lemmas_all <- NULL
   message("No tidy_lemmas_all object found. Lemma seasonality section will be skipped.")
@@ -86,7 +81,7 @@ if ("tidy_lemmas_all" %in% names(combined_objects)) {
 # year_month is the month-level time index.
 # month is used for seasonality by calendar month.
 
-combined_ts <- combined_dat %>%
+hmh_network_ts <- hmh_network_dat %>%
   clean_names() %>%
   mutate(
     submitted_date = as.Date(submitted_date),
@@ -102,13 +97,13 @@ combined_ts <- combined_dat %>%
 # This is intentionally similar to the requestor grouping you have been using
 # elsewhere, so the optional analysis stays aligned with the main project.
 
-combined_ts <- combined_ts %>%
+hmh_network_ts <- hmh_network_ts %>%
   mutate(
     requestor_text = str_to_lower(coalesce(requestor_category, "")),
     
     requestor_group = case_when(
       str_detect(requestor_text, "physical therapist|pt|occupational therapist|ot|speech|slp|therapy|therapist|allied") ~ "Allied Health Professional",
-      str_detect(requestor_text, "nurse practitioner|np|physician assistant|pa") ~ "Nurse Practitioner/ PA",
+      str_detect(requestor_text, "nurse practitioner|np|physician assistant|pa") ~ "Nurse Practitioner/PA",
       str_detect(requestor_text, "physician|attending") ~ "Physician",
       str_detect(requestor_text, "nurse|rn|nursing") ~ "Nurse",
       str_detect(requestor_text, "resident/fellow|resident") ~ "Resident",
@@ -129,7 +124,7 @@ combined_ts <- combined_ts %>%
         "Allied Health Professional",
         "Student",
         "Resident",
-        "Nurse Practitioner/ PA",
+        "Nurse Practitioner/PA",
         "Corporate",
         "Hospital",
         "Other",
@@ -143,14 +138,14 @@ combined_ts <- combined_ts %>%
 # Save the cleaned time-series-ready dataset --------------------------------
 
 write_pretty_csv(
-  combined_ts,
-  "combined_time_series_ready_data",
+  hmh_network_ts,
+  "hmh_network_time_series_ready_data",
   tables_dir
 )
 
 # Monthly request totals ---------------------------------------------------
 
-monthly_requests <- combined_ts %>%
+monthly_requests <- hmh_network_ts %>%
   filter(!is.na(year_month)) %>%
   count(year_month)
 
@@ -173,7 +168,7 @@ monthly_requests_summary <- monthly_requests %>%
 # Monthly request volume ----------------------------------------------------
 # This is the main demand-over-time table.
 
-monthly_requests <- combined_ts %>%
+monthly_requests <- hmh_network_ts %>%
   count(year_month, name = "n_requests") %>%
   arrange(year_month) %>%
   mutate(
@@ -207,7 +202,7 @@ p_monthly_requests <- ggplot(
   ) +
   labs(
     title = "Average Literature Search Requests by Calendar Month",
-    subtitle = "Combined HUMC + HMH requests, 2025–2026",
+    subtitle = "HMH network literature search requests, 2025–2026",
     x = NULL,
     y = "Average requests per month"
   ) +
@@ -215,7 +210,7 @@ p_monthly_requests <- ggplot(
 
 ggsave(
   file.path(figures_dir, "monthly_request_volume.png"),
-  p_monthly_volume,
+  p_monthly_requests,
   width = 11,
   height = 6,
   dpi = 300
@@ -225,7 +220,7 @@ ggsave(
 # This collapses across years to ask:
 # Are some calendar months typically busier than others?
 
-monthly_seasonality <- combined_ts %>%
+monthly_seasonality <- hmh_network_ts %>%
   count(year, month_num, month, name = "n_requests") %>%
   group_by(month_num, month) %>%
   summarize(
@@ -252,6 +247,10 @@ p_month_seasonality <- ggplot(
 ) +
   geom_line(linewidth = 1) +
   geom_point(size = 3) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
   labs(
     title = "Average Request Volume by Calendar Month",
     subtitle = "Mean monthly requests across all observed years",
@@ -278,7 +277,7 @@ ggsave(
 # This is useful because it shows whether "seasonality" is consistent or whether
 # specific years are driving the pattern.
 
-month_year_heatmap <- combined_ts %>%
+month_year_heatmap <- hmh_network_ts %>%
   count(year, month, month_num, name = "n_requests") %>%
   arrange(year, month_num)
 
@@ -322,7 +321,7 @@ ggsave(
 # This asks whether certain requestor groups tend to use the library more at
 # specific points in the year.
 
-requestor_monthly <- combined_ts %>%
+requestor_monthly <- hmh_network_ts %>%
   filter(!is.na(requestor_group)) %>%
   count(year_month, requestor_group, name = "n_requests") %>%
   group_by(year_month) %>%
@@ -340,7 +339,7 @@ write_pretty_csv(
 
 # Keep the most common requestor groups for readable figures.
 
-top_requestor_groups <- combined_ts %>%
+top_requestor_groups <- hmh_network_ts %>%
   count(requestor_group, sort = TRUE) %>%
   filter(!is.na(requestor_group)) %>%
   slice_head(n = 8) %>%
@@ -385,7 +384,7 @@ ggsave(
 
 # Figure 5: requestor group seasonal pattern --------------------------------
 
-requestor_seasonality <- combined_ts %>%
+requestor_seasonality <- hmh_network_ts %>%
   filter(requestor_group %in% top_requestor_groups) %>%
   count(requestor_group, year, month_num, month, name = "n_requests") %>%
   group_by(requestor_group, month_num, month) %>%
@@ -433,7 +432,7 @@ ggsave(
 # This is less about long-term trend and more about scheduling:
 # Are requests concentrated on certain weekday/month combinations?
 
-weekday_month <- combined_ts %>%
+weekday_month <- hmh_network_ts %>%
   filter(!is.na(weekday), !is.na(month)) %>%
   count(month_num, month, weekday, name = "n_requests") %>%
   group_by(month_num, month) %>%
@@ -454,7 +453,7 @@ p_weekday_month <- ggplot(
   scale_fill_gradient(low = "#e8f0f4", high = "#24787f") +
   labs(
     title = "Requests by Weekday and Month",
-    subtitle = "Combined data; darker cells indicate higher request volume",
+    subtitle = "HMH network data; darker cells indicate higher request volume",
     x = NULL,
     y = NULL,
     fill = "Requests"
@@ -699,6 +698,6 @@ if (!is.null(tidy_lemmas_all)) {
 
 # Final messages ------------------------------------------------------------
 
-message("Combined time series analysis complete.")
+message("HMH network time series analysis complete.")
 message("Figures saved to: ", figures_dir)
 message("Tables saved to: ", tables_dir)

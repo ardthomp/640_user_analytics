@@ -16,7 +16,7 @@ source(here("scripts", "shared", "output_helpers.R"))
 model_output_dir <- here(
   "outputs",
   "optional_models",
-  "hmh_01_effort_level_requestor"
+  "hmh_02_effort_level_requestor_model"
 )
 
 figures_dir <- file.path(model_output_dir, "figures")
@@ -59,12 +59,12 @@ model_dat <- hmh_dat %>%
       str_detect(
         str_to_lower(who_requested_this_information),
         "physical therapist|pt|occupational therapist|ot|speech|slp|therapy|therapist|allied"
-      ) ~ "Allied Health",
+      ) ~ "Allied Health Professional",
       
       str_detect(
         str_to_lower(who_requested_this_information),
         "nurse practitioner|np|physician assistant|pa"
-      ) ~ "NP/PA",
+      ) ~ "Nurse Practitioner/PA",
       
       str_detect(
         str_to_lower(who_requested_this_information),
@@ -119,9 +119,9 @@ model_dat <- hmh_dat %>%
       levels = c(
         "Physician",
         "Nurse",
-        "Allied Health",
+        "Allied Health Professional",
         "Resident",
-        "NP/PA",
+        "Nurse Practitioner/PA",
         "Student",
         "Fellow",
         "Pharmacist",
@@ -151,9 +151,10 @@ effort_summary <- model_dat %>%
     )
   )
 
-write_csv(
+write_pretty_csv(
   effort_summary,
-  file.path(tables_dir, "effort_level_by_requestor_group.csv")
+  "effort_level_by_requestor_group",
+  tables_dir
 )
 
 # Model ---------------------------------------------------------------------
@@ -176,9 +177,10 @@ effort_model_results <- broom::tidy(effort_model) %>%
     odds_ratio = exp(estimate)
   )
 
-write_csv(
+write_pretty_csv(
   effort_model_results,
-  file.path(tables_dir, "effort_level_requestor_model_results.csv")
+  "effort_level_requestor_model_results",
+  tables_dir
 )
 
 # Heatmap: effort level by requestor role -----------------------------------
@@ -378,6 +380,192 @@ p_workload <- ggplot(
 ggsave(
   file.path(figures_dir, "estimated_librarian_time_by_requestor.png"),
   p_workload,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+# Add estimated hours -------------------------------------------------------
+
+model_dat_hours <- model_dat %>%
+  mutate(
+    estimated_hours = case_when(
+      effort_level == "Low time" ~ 1.5,
+      effort_level == "Medium time" ~ 3.5,
+      effort_level == "High time" ~ 6
+    )
+  )
+
+# Contingency table ---------------------------------------------------------
+
+chi_table <- model_dat_hours %>%
+  count(requestor_group, effort_level) %>%
+  pivot_wider(
+    names_from = effort_level,
+    values_from = n,
+    values_fill = 0
+  )
+
+chi_matrix <- chi_table %>%
+  column_to_rownames("requestor_group") %>%
+  as.matrix()
+
+chi_result <- chisq.test(chi_matrix)
+
+chi_summary <- tibble(
+  statistic = unname(chi_result$statistic),
+  df = unname(chi_result$parameter),
+  p_value = chi_result$p.value
+)
+
+write_pretty_csv(
+  chi_summary,
+  "chi_squared_effort_by_requestor.csv",
+  tables_dir
+)
+
+# Standardized residuals ----------------------------------------------------
+
+chi_residuals <- as.data.frame(chi_result$stdres) %>%
+  rownames_to_column("requestor_group") %>%
+  pivot_longer(
+    cols = -requestor_group,
+    names_to = "effort_level",
+    values_to = "std_residual"
+  )
+
+write_pretty_csv(
+  chi_residuals,
+  "chi_squared_standardized_residuals.csv",
+  tables_dir
+)
+
+# Heatmap of standardized residuals -----------------------------------------
+
+p_residuals <- ggplot(
+  chi_residuals,
+  aes(
+    x = effort_level,
+    y = requestor_group,
+    fill = std_residual
+  )
+) +
+  geom_tile(color = "white", linewidth = 1.2) +
+  geom_text(
+    aes(label = round(std_residual, 2)),
+    fontface = "bold",
+    size = 4
+  ) +
+  scale_fill_gradient2(
+    low = "#2166AC",
+    mid = "white",
+    high = "#B2182B",
+    midpoint = 0
+  ) +
+  labs(
+    title = "Observed vs Expected Search Effort by Requestor Role",
+    subtitle = "Standardized residuals from chi-squared test",
+    x = NULL,
+    y = NULL,
+    fill = "Std.\nResidual"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(face = "bold"),
+    axis.text.y = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", size = 15)
+  )
+
+ggsave(
+  file.path(figures_dir, "chi_squared_residual_heatmap.png"),
+  p_residuals,
+  width = 10,
+  height = 7,
+  dpi = 300
+)
+
+# Request share vs workload share -------------------------------------------
+
+request_vs_workload <- model_dat %>%
+  mutate(
+    estimated_hours = case_when(
+      effort_level == "Low time" ~ 1.5,
+      effort_level == "Medium time" ~ 3.5,
+      effort_level == "High time" ~ 6
+    )
+  ) %>%
+  group_by(requestor_group) %>%
+  summarize(
+    n_requests = n(),
+    total_hours = sum(estimated_hours, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    request_percent = n_requests / sum(n_requests),
+    workload_percent = total_hours / sum(total_hours),
+    
+    workload_ratio = workload_percent / request_percent,
+    
+    percent_difference =
+      (workload_percent - request_percent) * 100
+  ) %>%
+  arrange(desc(workload_ratio))
+
+write_pretty_csv(
+  request_vs_workload,
+  "request_vs_workload_summary.csv",
+  tables_dir
+)
+
+# Diverging workload figure -------------------------------------------------
+
+p_workload_ratio <- request_vs_workload %>%
+  ggplot(
+    aes(
+      x = workload_ratio,
+      y = reorder(requestor_group, workload_ratio)
+    )
+  ) +
+  geom_vline(
+    xintercept = 1,
+    linetype = "dashed",
+    color = "gray50"
+  ) +
+  geom_point(
+    size = 5,
+    color = "#C51B1D"
+  ) +
+  geom_segment(
+    aes(
+      x = 1,
+      xend = workload_ratio,
+      y = requestor_group,
+      yend = requestor_group
+    ),
+    linewidth = 1.5,
+    color = "#C51B1D"
+  ) +
+  scale_x_continuous(
+    labels = scales::number_format(accuracy = 0.1)
+  ) +
+  labs(
+    title = "Workload Contribution by Requestor Role, HMH 2026",
+    subtitle = "Comparison of share of requests vs share of estimated librarian time",
+    x = "Workload Ratio",
+    y = NULL
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.y = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", size = 15)
+  )
+
+ggsave(
+  file.path(figures_dir, "request_vs_workload_ratio.png"),
+  p_workload_ratio,
   width = 10,
   height = 6,
   dpi = 300
