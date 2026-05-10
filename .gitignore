@@ -8,6 +8,7 @@
 
 # renv local library (ignore local library only)
 renv/library/
+renv/staging/
 
 # Do not track any data or outputs
 data/

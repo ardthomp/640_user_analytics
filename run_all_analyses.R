@@ -14,6 +14,7 @@
 #   - By default, this runner rebuilds the main analysis outputs but does not
 #     run optional long-term legacy trend figures unless run_humc_legacy_trends
 #     is set to TRUE.
+#   - Use renv::snapshot() in console to update renv.lock file
 
 # Setup --------------------------------------------------------------------
 
