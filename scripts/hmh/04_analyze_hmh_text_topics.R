@@ -42,7 +42,7 @@ clear_output_folder(paths$figures_dir, "\\.(png|jpg|jpeg|pdf)$")
 clear_output_folder(paths$output_dir, "^hmh_text_topic_report\\.xlsx$")
 
 analysis_data <- readRDS(network_rds_path)
-network_dat <- analysis_data$combined_dat
+network_dat <- analysis_data$hmh_network_dat
 phrases_tbl <- read_phrases(phrases_path)
 custom_map <- read_custom_merges(custom_merges_path)
 lex_map <- read_lex(lex_path)

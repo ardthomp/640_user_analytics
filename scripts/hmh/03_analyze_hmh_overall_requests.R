@@ -45,7 +45,7 @@ clear_output_folder(paths$formatted_tables_dir, "\\.html$")
 clear_output_folder(paths$output_dir, "^hmh_overall_request_summary\\.xlsx$")
 
 analysis_data <- readRDS(hmh_network_rds_path)
-network_dat <- analysis_data$combined_dat
+network_dat <- analysis_data$hmh_network_dat
 
 overall_summary_path <- file.path(paths$output_dir, "hmh_overall_request_summary.xlsx")
 

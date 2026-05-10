@@ -432,7 +432,7 @@ hmh_dat <- hmh_raw %>%
 
 # Combine request-level data -----------------------------------------------
 
-combined_dat <- bind_rows(humc_dat, hmh_dat) %>%
+hmh_network_dat <- bind_rows(humc_dat, hmh_dat) %>%
   mutate(
     request_id = row_number(),
     global_request_id = request_id,
@@ -453,12 +453,12 @@ combined_dat <- bind_rows(humc_dat, hmh_dat) %>%
   ) %>%
   relocate(request_id, global_request_id)
 
-combined_form_dat <- combined_dat %>%
+hmh_shared_form_dat <- hmh_network_dat %>%
   filter(source_file_type == "hmh")
 
 # Purpose-level data --------------------------------------------------------
 
-tidy_purposes <- combined_dat %>%
+hmh_tidy_purposes <- hmh_network_dat %>%
   filter(!is.na(purpose), purpose != "") %>%
   separate_rows(purpose, sep = ",") %>%
   mutate(
@@ -494,12 +494,12 @@ tidy_purposes <- combined_dat %>%
     purpose_other_detail
   )
 
-tidy_purposes_combined_form <- tidy_purposes %>%
+hmh_shared_form_purposes <- hmh_tidy_purposes %>%
   filter(source_file_type == "hmh")
 
 # Topic-level data ----------------------------------------------------------
 
-all_research_topics_full <- combined_dat %>%
+all_research_topics_full <- hmh_network_dat %>%
   transmute(
     global_request_id,
     request_id,
@@ -665,10 +665,10 @@ if (export_text_inventory_csvs) {
 
 hmh_network_analysis_data <- list(
   analysis_years = analysis_years,
-  combined_dat = combined_dat,
-  combined_form_dat = combined_form_dat,
-  tidy_purposes = tidy_purposes,
-  tidy_purposes_combined_form = tidy_purposes_combined_form,
+  hmh_network_dat = hmh_network_dat,
+  hmh_shared_form_dat = hmh_shared_form_dat,
+  hmh_tidy_purposes = hmh_tidy_purposes,
+  hmh_shared_form_purposes = hmh_shared_form_purposes,
   all_research_topics_full = all_research_topics_full,
   topics_normalized = topics_normalized,
   tidy_lemmas_all = tidy_lemmas_all,
@@ -693,11 +693,11 @@ saveRDS(
 # Console summary ----------------------------------------------------------
 
 cat("\n--- HMH Network Dataset Build Complete ---\n")
-cat("Request-level rows:", nrow(combined_dat), "\n")
+cat("Request-level rows:", nrow(hmh_network_dat), "\n")
 cat("HUMC rows:", nrow(humc_dat), "\n")
 cat("HMH rows:", nrow(hmh_dat), "\n")
-cat("Shared-form rows:", nrow(combined_form_dat), "\n")
-cat("Purpose rows:", nrow(tidy_purposes), "\n")
+cat("Shared-form rows:", nrow(hmh_shared_form_dat), "\n")
+cat("Purpose rows:", nrow(hmh_tidy_purposes), "\n")
 cat("Research topic records:", nrow(all_research_topics_full), "\n")
 cat("Lemma records:", nrow(tidy_lemmas_all), "\n")
 cat("Unique lemmas:", n_distinct(tidy_lemmas_all$lemma), "\n")

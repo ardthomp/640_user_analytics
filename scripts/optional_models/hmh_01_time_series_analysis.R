@@ -39,7 +39,7 @@ clear_output_folder(
   "\\.(csv|rds|xlsx|html|png|jpg|jpeg)$"
 )
 
-# Load combined data --------------------------------------------------------
+# Load HMH network data --------------------------------------------------------
 # This script reads the harmonized HMH network dataset created by
 # scripts/hmh/00_build_hmh_network_dataset.R.
 
@@ -55,17 +55,15 @@ if (!file.exists(hmh_network_rds_path)) {
 
 hmh_network_objects <- readRDS(hmh_network_rds_path)
 
-# Pull the combined structured dataset.
-# This assumes the object is stored as combined_dat. If your RDS uses another
-# name, this gives a clear error instead of failing later.
+# Pull the harmonized HMH network dataset.
 
-if ("combined_dat" %in% names(hmh_network_objects)) {
-  hmh_network_dat <- hmh_network_objects$combined_dat
+if ("hmh_network_dat" %in% names(hmh_network_objects)) {
+  hmh_network_dat <- hmh_network_objects$hmh_network_dat
 } else {
-  stop("The HMH network RDS does not contain an object named combined_dat.")
+  stop("The HMH network RDS does not contain an object named hmh_network_dat.")
 }
 
-# Pull lemma-level data if it is already saved in the combined object.
+# # Pull lemma-level data from the harmonized HMH network analysis object.
 # If not, the script will skip lemma seasonality and still run the volume and
 # requestor-group sections.
 
