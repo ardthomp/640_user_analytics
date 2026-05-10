@@ -41,42 +41,24 @@ Outputs include:
 ## ⭐ Project Structure
 
 ```text
-data/              ❗private raw and processed data (not tracked)
-outputs/           ❗generated figures, tables, and workbooks (not tracked)
-
-docs/
-    data_dictionary.md
-    
-renv/              ❗project package environment
+data/
+  raw/                  private source files
+  processed/            processed analysis objects
 
 scripts/
-    combined/
-        01_build_combined_dataset.R
-        02_generate_combined_report.R
-    hmh/
-        run_hmh_article_request_analysis.R
-        run_hmh_literature_search_analysis.R
-    humc/
-        00_build_humc_master_csv.R
-        01_build_analysis_object.R
-        02_generate_tables.R
-        03_generate_figures.R
-    optional_models/
-        combined_01_time_series_patterns.R
-        hmh_01_effort_level_requestor_model.R
-        humc_01_citation_count_prediction_model.R
-        humc_02_longitudinal_time_series.R
-    shared/
-        helpers.R
-        output_helpers.R
-        paths.R
-        plotting_helpers.R
-        reference_data_loaders.R
-        text_helpers.R
+  humc/                 historical HUMC analyses (2013–2025)
+  hmh/                  harmonized HMH network analyses (2025–present)
+  shared/               shared helper and text-processing functions
+  optional_models/      exploratory and non-pipeline analyses
 
-run_all_analyses.R   ❗master analysis script
+outputs/
+  humc/
+  hmh/
+  optional_models/
+
+run_all_analyses.R
+renv.lock
 README.md
-
 ```
 
 ---
@@ -87,18 +69,21 @@ README.md
 
 ### Legacy HUMC dataset (2013–2025)
 
-The legacy HUMC dataset contains more than 5,800 literature search requests collected over multiple years. These records rely heavily on free-text fields and include inconsistent formatting, abbreviations, and terminology across time periods.
+The legacy HUMC dataset contains more than 5,800 literature search requests collected between 2013 and 2025. These records were created using older request-tracking workflows and rely heavily on free-text fields, including research topics, request descriptions, and requestor information. As a result, the dataset includes inconsistent formatting, abbreviations, and terminology across years.
 
+This dataset is primarily used for historical trend analysis and long-term text analysis of literature search topics at HUMC.
 
-### HMH structured dataset (2025–present)
+### Harmonized HMH network dataset (2025–present)
 
-The newer HMH dataset includes standardized request forms with structured variables such as:
+Beginning in 2025, HMH libraries transitioned to a shared request form with more standardized and structured data collection. The newer dataset includes variables such as:
 
-- Request type
-- Requestor role
-- Campus affiliation
-- Time spent on requests
-- Article/chapter retrieval source
+Request type
+Requestor role
+Campus affiliation
+Time spent on requests
+Article/chapter retrieval source
+
+The harmonized HMH workflow combines transition-year legacy HUMC data with newer network-wide shared-form data to support both longitudinal comparisons and current operational analyses.
 
 As of 2026, the structured dataset includes both literature search requests and article/chapter requests conducted across the HMH network.
 
@@ -130,26 +115,19 @@ Shared helper scripts are used throughout the project to standardize:
 - Text preprocessing
 - Reference data loading
 
-
 ### Text analysis workflow
 
-Research topic text was normalized using:
+Research topic text is processed using a shared text-analysis workflow across both the historical HUMC and harmonized HMH pipelines.
+The workflow uses:
 
 - Phrase preservation rules (`phrases.csv`)
 - BioLemmatizer
 - `tidytext`
 - Custom merge mappings (`custom_merges.csv`)
 
-The workflow:
+The pipeline cleans and normalizes free-text research topics, preserves meaningful biomedical phrases before tokenization, tokenizes and lemmatizes text, and applies custom mappings to merge equivalent terms and abbreviations. The processed text is then rejoined with structured metadata for downstream analyses such as lemma frequency counts, TF-IDF comparisons, and temporal trend analysis.
 
-- Cleans and normalizes free-text research topics
-- Preserves meaningful biomedical phrases before tokenization
-- Tokenizes and lemmatizes text
-- Applies custom mappings to merge equivalent terms
-- Rejoins processed text with structured metadata for downstream analysis
-
-The scripts also generate updated n-gram and phrase candidate lists to support ongoing refinement of the phrase dictionary.
-
+The scripts also generate updated bigram, trigram, and phrase-candidate tables to support ongoing refinement of the shared phrase dictionary and normalization workflow.
 
 ### Modeling and trend analysis
 
