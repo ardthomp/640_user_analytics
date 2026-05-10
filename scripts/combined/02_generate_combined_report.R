@@ -486,9 +486,15 @@ p_matched <- ggplot(
 ) +
   geom_line(linewidth = 1.1) +
   geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "2025" = "#3B6FB6",
+      "2026" = "#D94F3D"
+    )
+  ) +
   scale_y_continuous(limits = c(0, NA)) +
   labs(
-    title = "Monthly Literature Search Requests, Matched Months",
+    title = "HMH Monthly Literature Search Requests, Matched Months",
     subtitle = paste0("Comparison of Jan–", month.abb[penultimate_month_2026], " 2025 and 2026"),
     x = "Month",
     y = "Number of Requests",
@@ -599,7 +605,7 @@ p_top_lemmas <- top_lemmas %>%
   geom_col() +
   coord_flip() +
   labs(
-    title = "Top Lemmas in Literature Search Topics",
+    title = "Top Lemmas in Literature Search Topics, HMH 2025-2026",
     x = "Lemma",
     y = "Number of Mentions"
   ) +

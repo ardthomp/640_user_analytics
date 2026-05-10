@@ -373,15 +373,26 @@ plot_source_by_requestor <- article_chapter_source_by_requestor %>%
 plot_total_per_request <- article_chapter_data %>%
   transmute(total_articles_chapters_retrieved)
 
-p_article_by_requestor <- ggplot(plot_requestor, aes(x = requestor_role, y = n_requests)) +
+p_article_by_requestor <- ggplot(
+  plot_requestor,
+  aes(x = requestor_role, y = n_requests)
+) +
   geom_col() +
-  coord_flip() +
+  coord_flip(clip = "off") +
   labs(
-    title = paste0("Article/Chapter Requests by Requestor Role (", analysis_year, ")"),
+    title = paste0("Article/Chapter Requests by Requestor Role, HMH ", analysis_year),
     x = NULL,
     y = "Number of Requests"
   ) +
-  theme_minimal(base_size = 13)
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", size = 15),
+    axis.text.y = element_text(size = 11),
+    axis.text.x = element_text(size = 11),
+    panel.grid.minor = element_blank(),
+    plot.margin = margin(10, 30, 10, 20)
+  )
+
 
 p_article_by_received <- ggplot(plot_received, aes(x = request_received, y = n_requests)) +
   geom_col() +
@@ -465,7 +476,13 @@ p_article_total_per_request <- ggplot(
   ) +
   theme_minimal(base_size = 13)
 
-ggsave(file.path(paths$figures_dir, "article_requests_by_requestor.png"), p_article_by_requestor, width = 8, height = 5, dpi = 300)
+ggsave(
+  file.path(paths$figures_dir, "article_requests_by_requestor.png"),
+  p_article_by_requestor,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 ggsave(file.path(paths$figures_dir, "article_requests_by_received.png"), p_article_by_received, width = 8, height = 5, dpi = 300)
 ggsave(file.path(paths$figures_dir, "article_requests_by_campus.png"), p_article_by_campus, width = 8, height = 5, dpi = 300)
 ggsave(file.path(paths$figures_dir, "article_requests_by_month.png"), p_article_by_month, width = 9, height = 5, dpi = 300)

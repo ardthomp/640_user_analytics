@@ -42,7 +42,7 @@ Outputs include:
 
 ```text
 data/              ❗private raw and processed data (not tracked)
-outputs/           ❗generated figures and tables (not tracked)
+outputs/           ❗generated figures, tables, and workbooks (not tracked)
 
 docs/
     data_dictionary.md

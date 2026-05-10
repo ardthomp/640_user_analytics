@@ -6,6 +6,7 @@ library(here)
 library(janitor)
 library(MASS)
 library(broom)
+library(scales)
 
 source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "output_helpers.R"))
@@ -55,42 +56,86 @@ model_dat <- hmh_dat %>%
     ),
     
     requestor_group = case_when(
-      str_detect(str_to_lower(who_requested_this_information), "physical therapist|pt|occupational therapist|ot|speech|slp|therapy|therapist|allied") ~ "Allied Health Professional",
-      str_detect(str_to_lower(who_requested_this_information), "nurse practitioner|np|physician assistant|pa") ~ "Nurse Practitioner/ PA",
-      str_detect(str_to_lower(who_requested_this_information), "physician|attending") ~ "Physician",
-      str_detect(str_to_lower(who_requested_this_information), "nurse|rn") ~ "Nurse",
-      str_detect(str_to_lower(who_requested_this_information), "resident") ~ "Resident",
-      str_detect(str_to_lower(who_requested_this_information), "fellow") ~ "Fellow",
-      str_detect(str_to_lower(who_requested_this_information), "student") ~ "Student",
-      str_detect(str_to_lower(who_requested_this_information), "corporate") ~ "Corporate",
-      str_detect(str_to_lower(who_requested_this_information), "hospital") ~ "Hospital",
-      str_detect(str_to_lower(who_requested_this_information), "pharmacist|pharmacy") ~ "Pharmacist",
-      str_detect(str_to_lower(who_requested_this_information), "faculty") ~ "Faculty",
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "physical therapist|pt|occupational therapist|ot|speech|slp|therapy|therapist|allied"
+      ) ~ "Allied Health",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "nurse practitioner|np|physician assistant|pa"
+      ) ~ "NP/PA",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "physician|attending"
+      ) ~ "Physician",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "nurse|rn"
+      ) ~ "Nurse",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "resident"
+      ) ~ "Resident",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "fellow"
+      ) ~ "Fellow",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "student"
+      ) ~ "Student",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "corporate"
+      ) ~ "Corporate",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "hospital"
+      ) ~ "Hospital",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "pharmacist|pharmacy"
+      ) ~ "Pharmacist",
+      
+      str_detect(
+        str_to_lower(who_requested_this_information),
+        "faculty"
+      ) ~ "Faculty",
+      
       TRUE ~ "Other"
     ),
+    
     requestor_group = factor(
       requestor_group,
       levels = c(
         "Physician",
         "Nurse",
-        "Allied Health Professional",
-        "Student",
+        "Allied Health",
         "Resident",
-        "Nurse Practitioner/ PA",
-        "Corporate",
-        "Hospital",
-        "Other",
+        "NP/PA",
+        "Student",
         "Fellow",
         "Pharmacist",
-        "Faculty"
-        )
+        "Faculty",
+        "Corporate",
+        "Hospital",
+        "Other"
       )
+    )
   ) %>%
   filter(
     !is.na(effort_level),
     !is.na(requestor_group)
-  ) 
-        
+  )
 
 # Descriptive table ---------------------------------------------------------
 
@@ -98,9 +143,7 @@ effort_summary <- model_dat %>%
   count(requestor_group, effort_level) %>%
   group_by(requestor_group) %>%
   mutate(prop = n / sum(n)) %>%
-  ungroup()
-
-effort_summary <- effort_summary %>%
+  ungroup() %>%
   mutate(
     effort_level = factor(
       effort_level,
@@ -115,7 +158,7 @@ write_csv(
 
 # Model ---------------------------------------------------------------------
 
-effort_model <- polr(
+effort_model <- MASS::polr(
   effort_level ~ requestor_group,
   data = model_dat,
   Hess = TRUE
@@ -138,21 +181,30 @@ write_csv(
   file.path(tables_dir, "effort_level_requestor_model_results.csv")
 )
 
-# Figure --------------------------------------------------------------------
+# Heatmap: effort level by requestor role -----------------------------------
 
 effort_fig <- effort_summary %>%
   mutate(
     percent = prop * 100,
     label = paste0(round(percent), "%")
   ) %>%
-  ggplot(aes(x = effort_level, y = requestor_group, fill = percent)) +
+  ggplot(
+    aes(
+      x = effort_level,
+      y = requestor_group,
+      fill = percent
+    )
+  ) +
   geom_tile(color = "white", linewidth = 1.5) +
   geom_text(aes(label = label), size = 4.5, fontface = "bold") +
-  scale_fill_gradient(low = "#d8e6ef", high = "#24787f")
-
+  scale_fill_gradient(
+    low = "#FDE0DD",
+    high = "#C51B1D",
+    labels = scales::percent_format(scale = 1)
+  ) +
   labs(
-    title = "Effort Level by Requestor Role",
-    subtitle = "HMH literature search requests",
+    title = "Effort Level by Requestor Role, HMH 2026",
+    subtitle = "Literature search requests",
     x = NULL,
     y = NULL,
     fill = "Percent"
@@ -174,7 +226,7 @@ ggsave(
   dpi = 300
 )
 
-# Bar chart ----------
+# Bar chart: effort level mix by requestor role -----------------------------
 
 effort_bar_fig <- effort_summary %>%
   mutate(
@@ -183,7 +235,13 @@ effort_bar_fig <- effort_summary %>%
       levels = c("Low time", "Medium time", "High time")
     )
   ) %>%
-  ggplot(aes(x = prop, y = requestor_group, fill = effort_level)) +
+  ggplot(
+    aes(
+      x = prop,
+      y = requestor_group,
+      fill = effort_level
+    )
+  ) +
   geom_col(
     width = 0.75,
     color = "white",
@@ -192,19 +250,18 @@ effort_bar_fig <- effort_summary %>%
   scale_x_continuous(labels = scales::percent_format()) +
   scale_fill_manual(
     values = c(
-      "Low time" = "#5DA5DA",
-      "Medium time" = "#F0C808",
-      "High time" = "#D1495B"
+      "Low time" = "#FDE0DD",
+      "Medium time" = "#FA9FB5",
+      "High time" = "#C51B1D"
     ),
-    breaks = c("Low time", "Medium time", "High time"),
-    guide = guide_legend(reverse = FALSE)
+    breaks = c("Low time", "Medium time", "High time")
   ) +
   labs(
-    title = "Effort Level Mix by Requestor Role",
-    subtitle = "HMH literature search requests",
+    title = "Effort Level Mix by Requestor Role, HMH 2026",
+    subtitle = "Literature search requests",
     x = NULL,
     y = NULL,
-    fill = "Effort level"
+    fill = "Effort Level"
   ) +
   theme_minimal(base_size = 13) +
   theme(
@@ -237,25 +294,27 @@ time_summary <- model_dat %>%
 
 p_effort_distribution <- ggplot(
   time_summary,
-  aes(x = effort_level, y = prop, fill = effort_level)
+  aes(
+    x = effort_level,
+    y = prop,
+    fill = effort_level
+  )
 ) +
   geom_col(width = 0.7, color = "white") +
-  scale_y_continuous(
-    labels = scales::percent_format()
-  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
   scale_fill_manual(
     values = c(
-      "Low time" = "#5DA5DA",
-      "Medium time" = "#F0C808",
-      "High time" = "#D1495B"
+      "Low time" = "#FDE0DD",
+      "Medium time" = "#FA9FB5",
+      "High time" = "#C51B1D"
     ),
     guide = "none"
   ) +
   labs(
-    title = "Distribution of Literature Search Effort Levels",
-    subtitle = "HMH literature search requests",
+    title = "Distribution of Literature Search Effort Levels, HMH 2026",
+    subtitle = "Literature search requests",
     x = NULL,
-    y = "Percent of requests"
+    y = "Percent of Requests"
   ) +
   theme_minimal(base_size = 13) +
   theme(
@@ -299,16 +358,13 @@ p_workload <- ggplot(
     y = total_estimated_hours
   )
 ) +
-  geom_col(
-    fill = "#24787f",
-    width = 0.75
-  ) +
+  geom_col() +
   coord_flip() +
   labs(
-    title = "Estimated Librarian Time by Requestor Role",
+    title = "Estimated Librarian Time by Requestor Role, HMH 2026",
     subtitle = "Approximate workload based on reported search effort categories",
     x = NULL,
-    y = "Estimated librarian hours"
+    y = "Estimated Librarian Hours"
   ) +
   theme_minimal(base_size = 13) +
   theme(

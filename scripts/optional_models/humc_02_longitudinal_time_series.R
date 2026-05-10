@@ -174,7 +174,7 @@ humc_ts <- humc_raw %>%
     source_label = "HUMC legacy form",
     original_id = pull_col(humc_raw, "request_id"),
     
-    submitted_date = lubridate::mdy(pull_col(humc_raw, "date")),
+    submitted_date = as.Date(pull_col(humc_raw, "date")),
     submitted_at = as.POSIXct(submitted_date),
     year = year(submitted_date),
     month_num = month(submitted_date),
@@ -238,7 +238,7 @@ humc_ts <- humc_raw %>%
       levels = c("Pre-COVID", "COVID-era", "Post-2021")
     )
   ) %>%
-  select(
+  dplyr::select(
     request_id,
     global_request_id,
     source_file_type,
@@ -529,28 +529,57 @@ write_pretty_csv(
 )
 
 top_requestor_groups <- humc_ts %>%
+  filter(requestor_category != "Consumer") %>%
   count(requestor_category, sort = TRUE) %>%
   filter(!is.na(requestor_category)) %>%
   slice_head(n = 6) %>%
   pull(requestor_category)
 
 requestor_monthly_top <- requestor_monthly %>%
-  filter(requestor_category %in% top_requestor_groups)
+  filter(requestor_category %in% top_requestor_groups) %>%
+  filter(requestor_category != "Consumer") %>%
+  mutate(
+    requestor_plot = case_when(
+      requestor_category == "Physician" ~ "Attending",
+      requestor_category == "Resident/Fellow" ~ "Resident",
+      requestor_category == "Nursing" ~ "Nurse",
+      requestor_category == "OtherProvider" ~ "Allied Health Provider",
+      TRUE ~ requestor_category
+    )
+  )
+
+requestor_monthly_plot <- requestor_monthly %>%
+  filter(
+    !requestor_category %in% c(
+      "Committee",
+      "Unknown/Not specified",
+      "Consumer"
+    )
+  ) %>%
+  mutate(
+    requestor_plot = case_when(
+      requestor_category == "Physician" ~ "Attending",
+      requestor_category == "Resident/Fellow" ~ "Resident",
+      requestor_category == "Nursing" ~ "Nurse",
+      requestor_category == "OtherProvider" ~ "Allied Health Provider",
+      TRUE ~ requestor_category
+    )
+  )
 
 p_requestor_trends <- ggplot(
-  requestor_monthly_top,
+  requestor_monthly_plot,
   aes(x = year_month, y = n_requests)
 ) +
   geom_line(alpha = 0.35) +
   geom_line(aes(y = rolling_3_month), linewidth = 0.9) +
-  facet_wrap(~ requestor_category, scales = "free_y") +
+  facet_wrap(~ requestor_plot, scales = "free_y") +
   scale_x_date(
     date_breaks = "2 years",
     date_labels = "%Y"
   ) +
   labs(
-    title = "HUMC Monthly Request Trends by Requestor Group",
-    subtitle = "Top requestor groups; heavier line shows 3-month rolling average",
+    title = "HUMC Monthly Request Trends by Requestor Group, 2013–2025",
+    subtitle = "Heavier line shows 3-month rolling average",
     x = NULL,
     y = "Requests"
   ) +
@@ -748,7 +777,7 @@ topics_normalized <- humc_topics %>%
   filter(!is.na(research_topic_clean))
 
 tidy_lemmas_humc <- topics_normalized %>%
-  select(
+  dplyr::select(
     global_request_id,
     request_id,
     submitted_date,
@@ -880,7 +909,7 @@ p_lemma_trends <- ggplot(
     date_labels = "%Y"
   ) +
   labs(
-    title = "Monthly Trends for Common HUMC Research Topic Lemmas",
+    title = "Monthly Trends for Common HUMC Research Topic Lemmas, 2013-2025",
     subtitle = "Thin lines show monthly counts; heavier lines show 3-month rolling averages",
     x = NULL,
     y = "Mentions"

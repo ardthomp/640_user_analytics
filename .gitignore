@@ -27,10 +27,13 @@ docs/session_info.txt
 *.jpeg
 *.pdf
 *.html
+*.qmd
+*.docx
 
 # Scratch / notes
 methods.txt
 notes.txt
 project_structure.txt
+/640_final_project_writeup_files/
 
 
