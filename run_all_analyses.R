@@ -9,6 +9,9 @@
 #
 # How to use:
 #   source("run_all_analyses.R")
+#
+# Record current state of this project's library:
+#   renv::snapshot()
 
 libs <- c(
   "tidyverse",

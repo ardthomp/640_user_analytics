@@ -23,6 +23,7 @@ library(textstem)
 library(stringi)
 library(zoo)
 library(scales)
+library(gt)
 
 source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "helpers.R"))
@@ -643,6 +644,49 @@ ggsave(
   width = 11,
   height = 6,
   dpi = 300
+)
+
+# Ljung-Box test------------------------------------------------------
+
+ljung_box <- Box.test(
+  monthly_requests$n_requests,
+  lag = 12,
+  type = "Ljung-Box"
+)
+
+ljung_box_summary <- tibble(
+  test = "Ljung-Box",
+  statistic = unname(ljung_box$statistic),
+  df = unname(ljung_box$parameter),
+  p_value = ljung_box$p.value
+)
+
+write_pretty_csv(
+  ljung_box_summary,
+  "humc_ljung_box_test",
+  tables_dir
+)
+
+ljung_box_gt <- ljung_box_summary %>%
+  mutate(
+    statistic = round(statistic, 2),
+    p_value = case_when(
+      p_value < 0.001 ~ "<0.001",
+      TRUE ~ as.character(round(p_value, 3))
+    )
+  ) %>%
+  gt() %>%
+  tab_header(
+    title = "Ljung-Box Test for Autocorrelation",
+    subtitle = "HUMC monthly request volume"
+  )
+
+gtsave(
+  ljung_box_gt,
+  file.path(
+    analysis_output_dir,
+    "humc_ljung_box_test.html"
+  )
 )
 
 # STL decomposition ---------------------------------------------------------

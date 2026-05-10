@@ -20,6 +20,7 @@ library(here)
 library(tidyverse)
 library(janitor)
 library(openxlsx)
+library(gt)
 
 source(here("scripts", "shared", "paths.R"))
 source(here("scripts", "shared", "helpers.R"))
@@ -33,7 +34,10 @@ paths <- make_output_paths(project_name)
 
 output_dir <- paths$output_dir
 csv_dir <- paths$csv_dir
+formatted_tables_dir <- paths$formatted_tables_dir
 out_path <- file.path(output_dir, "out.rds")
+
+dir.create(formatted_tables_dir, recursive = TRUE, showWarnings = FALSE)
 
 # Export settings ----------------------------------------------------------
 
@@ -205,6 +209,42 @@ safe_chisq_analysis <- function(table_matrix) {
   )
 }
 
+format_chi_square_summary <- function(chi_result, cramers_v, analysis_name) {
+  if (length(chi_result) == 1 && is.na(chi_result)) {
+    return(tibble(
+      analysis = analysis_name,
+      chi_square = NA_real_,
+      df = NA_real_,
+      p_value = NA_character_,
+      cramers_v = cramers_v
+    ))
+  }
+  
+  tibble(
+    analysis = analysis_name,
+    chi_square = as.numeric(chi_result$statistic),
+    df = as.numeric(chi_result$parameter),
+    p_value_raw = chi_result$p.value,
+    cramers_v = cramers_v
+  ) %>%
+    mutate(
+      chi_square = round(chi_square, 2),
+      df = round(df, 0),
+      p_value = case_when(
+        p_value_raw < 0.001 ~ "<0.001",
+        TRUE ~ as.character(round(p_value_raw, 3))
+      ),
+      cramers_v = round(cramers_v, 3)
+    ) %>%
+    select(
+      analysis,
+      chi_square,
+      df,
+      p_value,
+      cramers_v
+    )
+}
+
 refresh_category_chi <- function(out) {
   data_norm_chi <- out$data_norm %>%
     mutate(
@@ -340,6 +380,43 @@ purpose_results <- refresh_purpose_analysis(out)
 phrase_results <- refresh_phrase_candidates(out, min_n = 3)
 top_lemmas <- refresh_top_lemmas(out, top_n = 300)
 
+category_chi_summary <- format_chi_square_summary(
+  chi_result = category_chi_results$chi_result,
+  cramers_v = category_chi_results$cramers_v,
+  analysis_name = "Request Category by Submitter Type"
+)
+
+purpose_chi_summary <- format_chi_square_summary(
+  chi_result = purpose_results$purpose_chi,
+  cramers_v = purpose_results$cramers_v_purpose,
+  analysis_name = "Request Purpose by Submitter Type"
+)
+
+chi_square_summary <- bind_rows(
+  category_chi_summary,
+  purpose_chi_summary
+)
+
+chi_square_summary_gt <- chi_square_summary %>%
+  filter(analysis == "Request Purpose by Submitter Type") %>%
+  gt() %>%
+  tab_header(
+    title = "Chi-Square Test Summary",
+    subtitle = "HUMC request purpose by submitter type"
+  ) %>%
+  cols_label(
+    analysis = "Analysis",
+    chi_square = "Chi-square",
+    df = "df",
+    p_value = "p-value",
+    cramers_v = "Cramer's V"
+  )
+
+gt::gtsave(
+  chi_square_summary_gt,
+  file.path(formatted_tables_dir, "chi_square_summary.html")
+)
+
 # Required RDS files for figure script -------------------------------------
 #
 # These stay on even when export_csvs = FALSE because 03_generate_figures.R
@@ -404,6 +481,7 @@ tables_to_export <- list(
   "Phrase Candidates" = phrase_results$phrase_candidates,
   "Phrases to Add" = phrase_results$phrases_to_add,
   "Bigram Candidates" = out$bigram_candidates,
+  "Chi Square Summary" = chi_square_summary,
   "Trigram Candidates" = out$trigram_candidates
 )
 
