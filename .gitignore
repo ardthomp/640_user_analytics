@@ -28,7 +28,7 @@ docs/session_info.txt
 *.jpeg
 *.pdf
 *.html
-!index.html
+!640_writeup.html
 *.qmd
 *.docx
 
