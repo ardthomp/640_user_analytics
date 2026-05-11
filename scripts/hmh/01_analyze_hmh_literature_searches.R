@@ -1,15 +1,16 @@
-# Line endings normalized for GitHub display
-# scripts/hmh/run_hmh_literature_search_analysis.R
+# scripts/hmh/01_analyze_hmh_literature_searches.R
 #
-# HMH literature search request analysis.
+# This script summarizes 2026 HMH shared-form literature search requests.
+# It uses the standardized request fields to describe demand, requestor groups,
+# campus patterns, request purposes, and workload indicators.
 #
-# This script overwrites the latest outputs instead of archiving every run.
+# Text analysis and optional workload modeling are handled in separate scripts.
+#
+# Input:
+#   data/raw/hmh.csv
 #
 # Outputs:
-#   outputs/hmh/literature_searches/csv/
-#   outputs/hmh/literature_searches/figures/
-#   outputs/hmh/literature_searches/formatted_tables/
-#   outputs/hmh/literature_searches/hmh_lit_search_summary.xlsx
+#   outputs/hmh/literature_searches/
 
 # Setup --------------------------------------------------------------------
 
@@ -37,12 +38,13 @@ source(here("scripts", "shared", "plotting_helpers.R"))
 
 # Settings and paths -------------------------------------------------------
 
+# This script analyzes 2026 HMH literature search requests collected through
+# the standardized shared request form..
 analysis_year <- 2026
 
 weekday_levels <- c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 time_level_levels <- c("Low time", "Medium time", "High time")
 
-raw_path <- hmh_path
 paths <- make_output_paths(file.path("hmh", "literature_searches"))
 
 # Export settings -----------------------------------------------------------
@@ -107,52 +109,35 @@ if (!exists("clean_blank")) {
 
 # Load and process data ----------------------------------------------------
 
-raw <- readr::read_csv(raw_path, show_col_types = FALSE) %>%
-  janitor::clean_names()
+hmh_network_objects <- readRDS(
+  here("data", "processed", "hmh_network_analysis_data.rds")
+)
 
-dat <- raw %>%
-  mutate(submitted_at_raw = parse_timestamp(timestamp)) %>%
-  filter(
-    select_question_request_type == "Literature Search",
-    lubridate::year(submitted_at_raw) == analysis_year
-  ) %>%
-  mutate(request_id = row_number()) %>%
+dat <- hmh_network_objects$hmh_shared_form_dat %>%
+  filter(year == analysis_year) %>%
   mutate(
-    submitted_at = submitted_at_raw,
-    submitted_date = as.Date(submitted_at),
-    year = lubridate::year(submitted_at),
-    month = lubridate::month(submitted_at, label = TRUE, abbr = TRUE),
-    month_num = lubridate::month(submitted_at),
-    year_month = as.Date(lubridate::floor_date(submitted_at, "month")),
-    week = lubridate::floor_date(submitted_at, unit = "week", week_start = 1),
-    weekday = lubridate::wday(submitted_at, label = TRUE, abbr = FALSE) %>%
-      factor(levels = weekday_levels),
-    hour = lubridate::hour(submitted_at),
+    request_id = row_number(),
+    
+    weekday = factor(
+      weekday,
+      levels = weekday_levels
+    ),
+    
     season = case_when(
       month_num %in% c(12, 1, 2) ~ "Winter",
       month_num %in% c(3, 4, 5) ~ "Spring",
       month_num %in% c(6, 7, 8) ~ "Summer",
       TRUE ~ "Fall"
     ),
-    requestor_category = clean_blank(who_requested_this_information),
-    requestor_group = collapse_requestor_group(requestor_category),
-    request_received = clean_blank(how_was_the_question_request_received),
-    campus_affiliation = clean_blank(campus_affiliation),
-    campus_affiliation = case_when(
-      stringr::str_to_lower(campus_affiliation) ==
-        "hackensack meridian university medical center" ~
-        "Hackensack University Medical Center",
-      TRUE ~ campus_affiliation
-    ),
-    research_topic = clean_blank(research_topic),
-    time_spent = clean_blank(time_spent_on_searches),
-    purpose = clean_blank(purpose_of_request),
-    n_searches = suppressWarnings(as.numeric(number_of_literature_searches))
+    
+    requestor_group = collapse_requestor_group(requestor_category)
   ) %>%
   filter(!is.na(weekday)) %>%
   filter(requestor_group != "Consumer" | is.na(requestor_group))
 
 # Penultimate month setup --------------------------------------------------
+# Use the penultimate observed month so incomplete current-month data
+# does not distort monthly trend figures.
 
 latest_month_start <- dat %>%
   summarize(latest_month = max(year_month, na.rm = TRUE)) %>%
@@ -194,10 +179,12 @@ requests_by_received <- dat %>%
   mutate(prop = n_requests / sum(n_requests))
 
 requests_by_campus <- dat %>%
-  count(campus_affiliation, sort = TRUE, name = "n_requests") %>%
+  count(campus_affiliation_clean, sort = TRUE, name = "n_requests") %>%
   mutate(prop = n_requests / sum(n_requests))
 
 # Purpose tables -----------------------------------------------------------
+# Purpose is a multi-select field, so one request may contribute to
+# more than one purpose category.
 
 if (sum(!is.na(dat$purpose)) > 0) {
   tidy_purposes <- dat %>%
@@ -224,7 +211,7 @@ if (sum(!is.na(dat$purpose)) > 0) {
     dplyr::select(
       request_id,
       requestor_group,
-      campus_affiliation,
+      campus_affiliation_clean,
       time_spent,
       purpose_category,
       purpose_other_detail
@@ -241,8 +228,8 @@ if (sum(!is.na(dat$purpose)) > 0) {
     ungroup()
   
   campus_by_purpose <- tidy_purposes %>%
-    count(campus_affiliation, purpose_category, sort = TRUE, name = "n_selections") %>%
-    group_by(campus_affiliation) %>%
+    count(campus_affiliation_clean, purpose_category, sort = TRUE, name = "n_selections") %>%
+    group_by(campus_affiliation_clean) %>%
     mutate(prop_within_campus = n_selections / sum(n_selections)) %>%
     ungroup()
   
@@ -267,6 +254,8 @@ if (sum(!is.na(dat$purpose)) > 0) {
 }
 
 # Workload / search tables -------------------------------------------------
+# Workload summaries use the structured fields from the shared form:
+# reported time spent and number of literature searches.
 
 searches_summary <- dat %>%
   summarize(
@@ -287,7 +276,7 @@ searches_by_requestor <- dat %>%
   )
 
 searches_by_campus <- dat %>%
-  group_by(campus_affiliation) %>%
+  group_by(campus_affiliation_clean) %>%
   summarize(
     n_requests = n(),
     mean_searches = mean(n_searches, na.rm = TRUE),
@@ -342,155 +331,6 @@ if (nrow(tidy_purposes) > 0) {
   time_spent_pct_by_purpose <- tibble()
 }
 
-# Text analysis ------------------------------------------------------------
-
-phrases_tbl <- read_phrases(phrases_path)
-custom_map <- read_custom_merges(custom_merges_path)
-lex_map <- read_lex(lex_path)
-
-dat_text <- dat %>%
-  mutate(
-    research_topic_clean = clean_text(research_topic, preset = "normalize"),
-    research_topic_clean = collapse_phrases(research_topic_clean, phrases_tbl),
-    research_topic_clean = na_if(research_topic_clean, "")
-  )
-
-tidy_lemmas <- dat_text %>%
-  filter(!is.na(research_topic_clean)) %>%
-  dplyr::select(
-    request_id,
-    research_topic_clean,
-    requestor_group,
-    campus_affiliation,
-    time_spent
-  ) %>%
-  tidytext::unnest_tokens(word, research_topic_clean) %>%
-  mutate(
-    word = str_replace_all(word, "[’`]", "'"),
-    word = str_replace_all(word, "\\.", ""),
-    word = str_replace_all(word, "[^a-z0-9'_-]", "")
-  ) %>%
-  filter(word != "", str_detect(word, "[a-z0-9]")) %>%
-  left_join(lex_map, by = c("word" = "token")) %>%
-  mutate(
-    lemma0 = coalesce(lemma_from_lex, word),
-    lemma1 = if_else(
-      is.na(lemma_from_lex),
-      textstem::lemmatize_words(word),
-      lemma0
-    )
-  ) %>%
-  left_join(custom_map, by = c("lemma1" = "token")) %>%
-  mutate(lemma = coalesce(lemma_custom, lemma1)) %>%
-  anti_join(tidytext::stop_words, by = c("lemma" = "word")) %>%
-  filter(!str_detect(lemma, "^\\d+$"))
-
-top_lemmas <- tidy_lemmas %>%
-  count(lemma, sort = TRUE) %>%
-  slice_head(n = 100)
-
-top_bigrams_clean <- dat_text %>%
-  filter(!is.na(research_topic_clean)) %>%
-  dplyr::select(request_id, research_topic_clean) %>%
-  tidytext::unnest_tokens(bigram, research_topic_clean, token = "ngrams", n = 2) %>%
-  filter(!is.na(bigram)) %>%
-  separate(bigram, into = c("word1", "word2"), sep = " ", remove = FALSE) %>%
-  filter(
-    !is.na(word1),
-    !is.na(word2),
-    !word1 %in% tidytext::stop_words$word,
-    !word2 %in% tidytext::stop_words$word
-  ) %>%
-  count(bigram, sort = TRUE) %>%
-  slice_head(n = 100)
-
-requestor_tfidf <- tidy_lemmas %>%
-  filter(!is.na(requestor_group)) %>%
-  count(requestor_group, lemma, sort = TRUE) %>%
-  tidytext::bind_tf_idf(lemma, requestor_group, n) %>%
-  arrange(desc(tf_idf))
-
-top_requestor_lemmas <- requestor_tfidf %>%
-  group_by(requestor_group) %>%
-  slice_max(tf_idf, n = 15, with_ties = FALSE) %>%
-  ungroup()
-
-if (nrow(tidy_purposes) > 0) {
-  lemmas_with_purpose <- tidy_lemmas %>%
-    inner_join(
-      dplyr::select(tidy_purposes, request_id, purpose_category),
-      by = "request_id",
-      relationship = "many-to-many"
-    )
-  
-  purpose_tfidf <- lemmas_with_purpose %>%
-    count(purpose_category, lemma, sort = TRUE) %>%
-    tidytext::bind_tf_idf(lemma, purpose_category, n) %>%
-    arrange(desc(tf_idf))
-  
-  top_purpose_lemmas <- purpose_tfidf %>%
-    group_by(purpose_category) %>%
-    slice_max(tf_idf, n = 15, with_ties = FALSE) %>%
-    ungroup()
-} else {
-  lemmas_with_purpose <- tibble()
-  purpose_tfidf <- tibble()
-  top_purpose_lemmas <- tibble()
-}
-
-research_topics <- dat %>%
-  filter(!is.na(research_topic), research_topic != "") %>%
-  dplyr::select(request_id, research_topic) %>%
-  distinct() %>%
-  arrange(research_topic)
-
-# Ordinal regression model -------------------------------------------------
-
-model_data_ordinal <- dat %>%
-  mutate(
-    time_category = case_when(
-      time_spent == "1-2 hours" ~ "Low time",
-      time_spent == "2-5 hours" ~ "Medium time",
-      time_spent == "More than 5 hours" ~ "High time",
-      TRUE ~ NA_character_
-    )
-  ) %>%
-  filter(!is.na(time_category), !is.na(requestor_group), !is.na(weekday)) %>%
-  mutate(
-    time_category = factor(time_category, levels = time_level_levels, ordered = TRUE),
-    requestor_group = factor(requestor_group)
-  ) %>%
-  dplyr::select(request_id, time_category, requestor_group, weekday)
-
-polr_results_df <- tibble()
-
-if (
-  nrow(model_data_ordinal) > 50 &&
-  dplyr::n_distinct(model_data_ordinal$time_category) > 1
-) {
-  polr_time <- MASS::polr(
-    time_category ~ requestor_group + weekday,
-    data = model_data_ordinal,
-    Hess = TRUE
-  )
-  
-  polr_summary <- summary(polr_time)
-  
-  p_values <- pnorm(
-    abs(polr_summary$coefficients[, "t value"]),
-    lower.tail = FALSE
-  ) * 2
-  
-  polr_results <- cbind(
-    polr_summary$coefficients,
-    "p value" = p_values,
-    "odds_ratio" = exp(polr_summary$coefficients[, "Value"])
-  )
-  
-  polr_results_df <- as.data.frame(polr_results) %>%
-    tibble::rownames_to_column("term")
-}
-
 # Tables to export ---------------------------------------------------------
 
 tables_to_export <- list(
@@ -506,7 +346,6 @@ tables_to_export <- list(
   "Campus by Purpose" = campus_by_purpose,
   "Other Purpose Details" = other_purpose_details,
   "Other Purpose List" = other_purpose_list,
-  "Research Topics" = research_topics,
   "Searches Summary" = searches_summary,
   "Searches by Requestor" = searches_by_requestor,
   "Searches by Campus" = searches_by_campus,
@@ -515,12 +354,7 @@ tables_to_export <- list(
   "Time Spent by Requestor" = time_spent_by_requestor,
   "Time Spent by Purpose" = time_spent_by_purpose,
   "Time Pct by Requestor" = time_spent_pct_by_requestor,
-  "Time Pct by Purpose" = time_spent_pct_by_purpose,
-  "Top 100 Lemmas" = top_lemmas,
-  "Top Clean Bigrams" = top_bigrams_clean,
-  "Top Requestor Lemmas" = top_requestor_lemmas,
-  "Top Purpose Lemmas" = top_purpose_lemmas,
-  "Ordinal Model Results" = polr_results_df
+  "Time Pct by Purpose" = time_spent_pct_by_purpose
 )
 
 tables_to_export_clean <- tables_to_export[
@@ -575,7 +409,7 @@ if (nrow(requests_by_purpose) > 0) {
     geom_col() +
     coord_flip() +
     labs(
-      title = "Requests by Purpose",
+      title = "Purpose Selections for Literature Search Requests",
       x = "Purpose Category",
       y = "Number of Selections"
     ) +
@@ -605,31 +439,6 @@ if (nrow(requestor_by_purpose) > 0) {
     p_purpose_stacked,
     width = 10,
     height = 8,
-    dpi = 300
-  )
-}
-
-if (nrow(top_requestor_lemmas) > 0) {
-  p_top_lemmas_faceted <- top_requestor_lemmas %>%
-    mutate(lemma = tidytext::reorder_within(lemma, tf_idf, requestor_group)) %>%
-    ggplot(aes(x = lemma, y = tf_idf, fill = requestor_group)) +
-    geom_col(show.legend = FALSE) +
-    facet_wrap(~ requestor_group, scales = "free_y", ncol = 3) +
-    tidytext::scale_x_reordered() +
-    coord_flip() +
-    labs(
-      title = "Most Distinctive Terms by Requestor Category (TF-IDF)",
-      x = "Lemma",
-      y = "TF-IDF Score"
-    ) +
-    theme_light() +
-    theme(panel.spacing = unit(1.5, "lines"))
-  
-  ggsave(
-    file.path(paths$figures_dir, "top_lemmas_by_requestor_faceted.png"),
-    p_top_lemmas_faceted,
-    width = 14,
-    height = 12,
     dpi = 300
   )
 }

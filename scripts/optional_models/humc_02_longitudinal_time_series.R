@@ -2,7 +2,7 @@
 # This script does not run automatically in the main project pipeline.
 #
 # Purpose:
-#   1. Analyze HUMC literature search request volume from 2013-2026.
+#   1. Analyze HUMC literature search request volume from 2013-2025.
 #   2. Look for seasonal patterns by month and year.
 #   3. Compare requestor groups over time.
 #   4. Explore research topic/lemma trends over time.
@@ -116,7 +116,7 @@ standardize_requestor_name <- function(x) {
     ) ~ "Nurse Practitioner/PA",
     str_detect(x_lower, "attending|physician|doctor|md|do") ~ "Physician",
     str_detect(x_lower, "nurse|\\brn\\b") ~ "Nursing",
-    str_detect(x_lower, "social work|therapy|pharmacy|diet|rehab|pt|ot|slp|allied|other provider") ~ "Allied Health",
+    str_detect(x_lower, "social work|therapy|pharmacy|diet|rehab|pt|ot|slp|allied|other provider") ~ "Allied Health Professional",
     str_detect(x_lower, "patient|family|consumer") ~ "Consumer",
     str_detect(x_lower, "committee") ~ "Committee",
     TRUE ~ x_original
@@ -180,8 +180,8 @@ humc_ts <- humc_raw %>%
     year = year(submitted_date),
     month_num = month(submitted_date),
     month = month(submitted_date, label = TRUE, abbr = TRUE),
-    year_month = floor_date(submitted_date, unit = "month"),
-    week = floor_date(submitted_date, unit = "week", week_start = 1),
+    year_month = as.Date(floor_date(submitted_date, unit = "month")),
+    week = as.Date(floor_date(submitted_date, unit = "week", week_start = 1)),
     weekday = wday(submitted_date, label = TRUE, abbr = TRUE, week_start = 1),
     
     requestor_category_raw = purrr::pmap_chr(
@@ -468,7 +468,8 @@ ggsave(
 )
 
 # COVID-period summary ------------------------------------------------------
-# This is not a causal analysis. It is a descriptive comparison of broad eras.
+# Descriptive era comparison only; this does not estimate the causal effect
+# of COVID-19 on request volume.
 
 covid_summary <- humc_ts %>%
   count(covid_period, name = "n_requests") %>%
@@ -544,7 +545,7 @@ requestor_monthly_top <- requestor_monthly %>%
       requestor_category == "Physician" ~ "Attending",
       requestor_category == "Resident/Fellow" ~ "Resident",
       requestor_category == "Nursing" ~ "Nurse",
-      requestor_category == "OtherProvider" ~ "Allied Health Provider",
+      requestor_category == "OtherProvider" ~ "Allied Health Professional",
       TRUE ~ requestor_category
     )
   )
@@ -647,6 +648,8 @@ ggsave(
 )
 
 # Ljung-Box test------------------------------------------------------
+# Test whether monthly request counts show autocorrelation.
+# A significant result suggests the series is not temporally random.
 
 ljung_box <- Box.test(
   monthly_requests$n_requests,
@@ -792,8 +795,8 @@ if (nrow(monthly_requests) >= 24) {
 }
 
 # Topic and lemma preparation ----------------------------------------------
-# This repeats the same normalization logic used in the combined script but
-# only for HUMC 2013-2026.
+# Optional topic-timing analysis. This repeats text normalization locally so
+# lemma trends can be aligned directly with the monthly time series.
 
 humc_topics <- humc_ts %>%
   transmute(

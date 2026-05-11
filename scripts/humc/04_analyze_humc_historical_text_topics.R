@@ -40,13 +40,12 @@ clear_output_folder(paths$csv_dir, "\\.csv$")
 clear_output_folder(paths$figures_dir, "\\.(png|jpg|jpeg|pdf)$")
 clear_output_folder(paths$output_dir, "^humc_historical_text_report\\.xlsx$")
 
+# Load the reusable HUMC historical analysis object created upstream.
 out <- readRDS(out_path)
-phrases_tbl <- read_phrases(phrases_path)
-custom_map <- read_custom_merges(custom_merges_path)
 
 # Clean research topic inventory -------------------------------------------
 
-all_research_topics_clean <- out$my_data2 %>%
+all_research_topics_clean <- out$humc_request_data %>%
   transmute(
     global_request_id = request_id,
     request_id,
@@ -54,7 +53,7 @@ all_research_topics_clean <- out$my_data2 %>%
     source_label = "HUMC legacy form",
     submitted_date = as.Date(date),
     year = lubridate::year(submitted_date),
-    year_month = lubridate::floor_date(submitted_date, unit = "month"),
+    year_month = as.Date(lubridate::floor_date(submitted_date, unit = "month")),
     submitter_type,
     research_topic = stringr::str_squish(as.character(topic)),
     research_topic_clean = Topic
@@ -64,14 +63,16 @@ all_research_topics_clean <- out$my_data2 %>%
 
 # Lemma tables --------------------------------------------------------------
 
-tidy_lemmas_humc_historical <- out$data_norm %>%
+# Reuse the lemma-level records from the HUMC analysis object and add
+# source labels for downstream comparison.
+tidy_lemmas_humc_historical <- out$lemma_records %>%
   mutate(
     global_request_id = request_id,
     source_file_type = "humc",
     source_label = "HUMC legacy form"
   )
 
-all_lemmas_humc_historical <- tidy_lemmas_humc_historical %>%
+unique_lemmas_humc_historical <- tidy_lemmas_humc_historical %>%
   distinct(lemma) %>%
   arrange(lemma)
 
@@ -87,6 +88,8 @@ lemma_counts_by_year <- tidy_lemmas_humc_historical %>%
 lemma_counts_by_submitter <- tidy_lemmas_humc_historical %>%
   count(submitter_type, lemma, sort = TRUE, name = "n_mentions")
 
+# TF-IDF highlights terms that are especially distinctive within each
+# submitter group, not simply the most frequent terms overall.
 lemma_tfidf_by_submitter <- tidy_lemmas_humc_historical %>%
   filter(!is.na(submitter_type), submitter_type != "Unknown") %>%
   count(submitter_type, lemma, name = "n") %>%
@@ -111,7 +114,7 @@ humc_text_tables <- list(
   "All Research Topics Clean" = all_research_topics_clean,
   "All Lemma Records Full" = tidy_lemmas_humc_historical,
   "Top 500 Lemmas" = top_500_lemmas_humc_historical,
-  "All Lemmas" = all_lemmas_humc_historical,
+  "Unique Lemmas" = unique_lemmas_humc_historical,
   "Lemma Counts by Year" = lemma_counts_by_year,
   "Lemma Counts by Submitter" = lemma_counts_by_submitter,
   "Lemma TF-IDF by Submitter" = lemma_tfidf_by_submitter,
@@ -131,6 +134,8 @@ if (export_workbook) {
 
 # Figure -------------------------------------------------------------------
 
+# Simple overview figure showing the most frequent lemmas in the HUMC
+# historical corpus.
 p_top_lemmas <- top_500_lemmas_humc_historical %>%
   slice_head(n = 25) %>%
   ggplot(aes(x = reorder(lemma, n_mentions), y = n_mentions)) +
@@ -151,7 +156,7 @@ ggsave(file.path(paths$figures_dir, "humc_historical_top_lemmas.png"), p_top_lem
 humc_historical_text_data <- list(
   all_research_topics_clean = all_research_topics_clean,
   tidy_lemmas_humc_historical = tidy_lemmas_humc_historical,
-  all_lemmas_humc_historical = all_lemmas_humc_historical,
+  unique_lemmas_humc_historical = unique_lemmas_humc_historical,
   top_500_lemmas_humc_historical = top_500_lemmas_humc_historical,
   lemma_counts_by_year = lemma_counts_by_year,
   lemma_counts_by_submitter = lemma_counts_by_submitter,

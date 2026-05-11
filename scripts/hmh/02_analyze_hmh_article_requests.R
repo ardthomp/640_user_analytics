@@ -1,9 +1,11 @@
-# Line endings normalized for GitHub display
-# scripts/hmh/run_hmh_article_request_analysis.R
+# scripts/hmh/02_analyze_hmh_article_requests.R
 #
-# HMH article/chapter request analysis.
+# Analyze HMH article/chapter requests.
 #
-# This script overwrites the latest outputs instead of archiving every run.
+# Purpose:
+#   Summarize 2026 article/chapter requests collected through the HMH
+#   shared request form. This script focuses on request volume, requestor
+#   roles, campus patterns, retrieval sources, and article/chapter counts.
 #
 # Outputs:
 #   outputs/hmh/article_requests/csv/
@@ -28,9 +30,11 @@ source(here("scripts", "shared", "plotting_helpers.R"))
 
 # Settings and paths -------------------------------------------------------
 
+# This script analyzes article/chapter requests from the standardized
+# HMH shared request form.
 analysis_year <- 2026
 
-raw_path <- hmh_path
+raw_path <- hmh_raw_csv_path
 paths <- make_output_paths(file.path("hmh", "article_requests"))
 
 # Export settings -----------------------------------------------------------
@@ -78,7 +82,7 @@ collapse_requestor_role <- function(x) {
     str_detect(
       x_clean,
       "nurse practitioner|\\bnp\\b|\\bpa\\b|physician assistant"
-    ) ~ "Nurse Practitioner/ PA",
+    ) ~ "Nurse Practitioner/PA",
     
     str_detect(
       x_clean,
@@ -89,6 +93,7 @@ collapse_requestor_role <- function(x) {
   )
 }
 
+# Classify free-text "other source" entries into broad retrieval categories.
 classify_article_source <- function(x) {
   x <- str_to_lower(as.character(x))
   x <- str_squish(x)
@@ -128,7 +133,7 @@ hmh_data <- hmh_raw %>%
     requestor_role = collapse_requestor_role(who_requested_this_information),
     request_received = clean_blank(how_was_the_question_request_received),
     
-    campus_affiliation = clean_blank(campus_affiliation),
+    campus_affiliation = clean_blank(campus_affiliation), # Standardize the campus field for reporting.
     campus_affiliation = case_when(
       str_to_lower(campus_affiliation) ==
         "hackensack meridian university medical center" ~
@@ -143,6 +148,8 @@ hmh_data <- hmh_raw %>%
     article_chapter_other_source_category =
       classify_article_source(article_chapter_other_source_text),
     
+    # This field may contain free text; parse_number() extracts numeric counts
+    # where available and returns NA otherwise.
     n_article_chapter_other =
       clean_num_na(number_of_articles_chapters_retrieved_from_other_include_source),
     n_article_chapter_subscribed =
@@ -181,13 +188,16 @@ latest_month_start <- article_chapter_data %>%
 
 penultimate_month_start <- latest_month_start %m-% months(1)
 
-month_breaks <- seq(
+month_breaks <- seq.Date(
   from = as.Date(paste0(analysis_year, "-01-01")),
-  to = penultimate_month_start,
+  to = as.Date(penultimate_month_start),
   by = "1 month"
 )
 
 # Analysis tables ----------------------------------------------------------
+
+# Convert subscribed content, Docline, and other-source counts into long format
+# so retrieval source mix can be summarized and plotted consistently.
 
 article_chapter_source_long <- bind_rows(
   article_chapter_data %>%
@@ -310,7 +320,11 @@ article_chapter_source_by_requestor <- article_chapter_source_long %>%
   group_by(requestor_role) %>%
   mutate(
     requestor_total_items = sum(total_items, na.rm = TRUE),
-    prop_items_within_requestor = total_items / requestor_total_items
+    prop_items_within_requestor = if_else(
+      requestor_total_items > 0,
+      total_items / requestor_total_items,
+      NA_real_
+    )
   ) %>%
   ungroup()
 
@@ -325,7 +339,11 @@ article_chapter_source_by_campus <- article_chapter_source_long %>%
   group_by(campus_affiliation) %>%
   mutate(
     campus_total_items = sum(total_items, na.rm = TRUE),
-    prop_items_within_campus = total_items / campus_total_items
+    prop_items_within_campus = if_else(
+      campus_total_items > 0,
+      total_items / campus_total_items,
+      NA_real_
+    )
   ) %>%
   ungroup()
 
@@ -423,7 +441,7 @@ p_article_by_month <- ggplot(
   scale_x_date(
     breaks = month_breaks,
     date_labels = "%b",
-    limits = range(month_breaks)
+    limits = c(min(month_breaks), max(month_breaks))
   ) +
   scale_y_continuous(limits = c(0, NA)) +
   labs(

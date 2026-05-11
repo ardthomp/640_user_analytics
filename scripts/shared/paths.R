@@ -1,4 +1,10 @@
 # scripts/shared/paths.R
+#
+# Centralized project paths and output-directory helpers.
+#
+# Purpose:
+#   Store reusable paths for processed data, reference files,
+#   and output directories used across HUMC and HMH workflows.
 
 library(here)
 
@@ -12,13 +18,13 @@ scripts_dir <- here("scripts")
 
 # Core datasets
 humc_path <- file.path(processed_data_dir, "humc.csv")
-hmh_path <- file.path(raw_data_dir, "hmh.csv")
+hmh_raw_csv_path <- file.path(raw_data_dir, "hmh.csv")
 
 # Shared reference files
-phrases_path <- here("data", "reference", "phrases.csv")
-custom_merges_path <- here("data", "reference", "custom_merges.csv")
-lex_path <- here("data", "reference", "lexicon.lex")
-categories_path <- here("data", "reference", "categories_long.xlsx")
+phrases_path <- file.path(reference_dir, "phrases.csv")
+custom_merges_path <- file.path(reference_dir, "custom_merges.csv")
+lex_path <- file.path(reference_dir, "lexicon.lex")
+categories_path <- file.path(reference_dir, "categories_long.xlsx")
 
 # Output directory helper (Simplified)
 make_output_paths <- function(project_name) {
@@ -36,5 +42,5 @@ make_output_paths <- function(project_name) {
     ~ if (!dir.exists(.x)) dir.create(.x, recursive = TRUE)
   )
   
-  return(paths)
+  paths
 }

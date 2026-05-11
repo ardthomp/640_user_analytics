@@ -1,11 +1,17 @@
 # scripts/shared/text_helpers.R
 #
-# Contains generic, project-agnostic helper functions for cleaning text.
+# Shared helper functions for text normalization and preprocessing used across
+# HUMC and HMH text-analysis workflows.
 
 library(stringr)
 library(stringi)
 
-#' A robust function for cleaning character vectors with presets.
+# Clean and normalize text using reusable preprocessing presets.
+#
+# Presets:
+#   default   - general lowercase/token cleanup
+#   topic     - stricter cleaning for n-gram generation
+#   normalize - preserve underscores/hyphens for phrase collapsing
 
 clean_text <- function(text, preset = "default") {
   cleaned_text <- text %>%
@@ -25,12 +31,12 @@ clean_text <- function(text, preset = "default") {
       stringr::str_replace_all("[^a-z0-9\\s'_-]", " ") %>%
       stringr::str_replace_all("\\s+", " ") %>%
       stringr::str_trim()
-  } else { # Default
+  } else { # General-purpose cleaning
     cleaned_text <- cleaned_text %>%
       stringr::str_replace_all("[^a-z0-9\\s']", " ") %>%
       stringr::str_replace_all("\\s+", " ") %>%
       stringr::str_trim()
   }
   
-  return(cleaned_text)
+  cleaned_text
 }

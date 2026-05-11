@@ -1,17 +1,25 @@
 # run_all_analyses.R
 #
-# Master runner for the refactored hospital library user analytics project.
+# Master runner for the hospital library user analytics project.
 #
 # Purpose:
-#   Run the HUMC historical pipeline and the HMH network pipeline in a clearer
-#   order. HUMC historical text analysis stays separate from the HMH network
-#   text analysis, but both use the same shared reference files.
+#   Run the HUMC historical workflows, HMH network workflows,
+#   and optional modeling analyses in a reproducible order.
+#
+#   The project includes:
+#     - HUMC historical literature search analysis
+#     - HMH network request analysis
+#     - Text analysis and lemmatization workflows
+#     - Figure and table generation
+#     - Optional exploratory modeling and time-series analyses
+#
+#   Shared helper functions and reference files are stored in:
+#     scripts/shared/
+#     reference_data/
 #
 # How to use:
 #   source("run_all_analyses.R")
-#
-# Record current state of this project's library:
-#   renv::snapshot()
+
 
 libs <- c(
   "tidyverse",
@@ -41,20 +49,23 @@ if (length(missing) > 0) {
 invisible(lapply(libs, library, character.only = TRUE))
 
 # Run switches --------------------------------------------------------------
+# Toggle workflows on/off without editing the pipeline structure.
 
+# HUMC historical workflows
 run_humc_build <- TRUE
 run_humc_analysis_object <- TRUE
 run_humc_tables <- TRUE
 run_humc_figures <- TRUE
 run_humc_historical_text <- TRUE
-run_humc_longitudinal_time_series <- FALSE
 
+# HMH network workflows
 run_hmh_network_build <- TRUE
 run_hmh_literature_searches <- TRUE
 run_hmh_article_requests <- TRUE
 run_hmh_overall_requests <- TRUE
 run_hmh_text_topics <- TRUE
 
+# Optional exploratory models
 run_optional_models <- FALSE
 
 # Helper -------------------------------------------------------------------

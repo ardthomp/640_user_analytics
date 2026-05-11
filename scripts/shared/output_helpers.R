@@ -1,5 +1,8 @@
 # scripts/shared/output_helpers.R
-# Line endings normalized for GitHub display
+#
+# Helper functions for clearing output folders and writing presentation-ready
+# CSV/Excel exports. These functions are intended for human-readable outputs,
+# not for analysis-ready data storage.
 
 library(dplyr)
 library(janitor)
@@ -10,6 +13,7 @@ library(stringi)
 library(purrr)
 library(readr)
 
+# Delete files from an output folder, optionally limited by filename pattern.
 clear_output_folder <- function(folder, pattern = NULL) {
   if (!dir.exists(folder)) {
     dir.create(folder, recursive = TRUE)
@@ -23,6 +27,7 @@ clear_output_folder <- function(folder, pattern = NULL) {
   invisible(NULL)
 }
 
+# Repair character encoding problems before writing display exports.
 repair_utf8 <- function(x) {
   x <- as.character(x)
   x <- iconv(x, from = "", to = "UTF-8", sub = "")
@@ -31,6 +36,7 @@ repair_utf8 <- function(x) {
   x
 }
 
+# Convert column names to title-case display labels.
 pretty_names <- function(df) {
   df %>%
     janitor::clean_names() %>%
@@ -38,6 +44,8 @@ pretty_names <- function(df) {
     rename_with(stringr::str_to_title)
 }
 
+# Format data for human-readable CSV/Excel output.
+# Note: all columns are converted to character after formatting.
 format_export_table <- function(df) {
   df %>%
     mutate(
@@ -57,11 +65,15 @@ write_pretty_csv <- function(df, filename, csv_dir) {
 
 write_pretty_workbook <- function(tables, path) {
   if (!dir.exists(dirname(path))) dir.create(dirname(path), recursive = TRUE)
+  
   wb <- openxlsx::createWorkbook()
+  
   for (nm in names(tables)) {
-    openxlsx::addWorksheet(wb, substr(nm, 1, 31))
-    openxlsx::writeData(wb, nm, format_export_table(tables[[nm]]))
+    sheet_name <- substr(nm, 1, 31)
+    openxlsx::addWorksheet(wb, sheet_name)
+    openxlsx::writeData(wb, sheet_name, format_export_table(tables[[nm]]))
   }
+  
   openxlsx::saveWorkbook(wb, path, overwrite = TRUE)
   invisible(path)
 }

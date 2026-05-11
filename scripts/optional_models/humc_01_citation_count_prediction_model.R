@@ -1,3 +1,14 @@
+# scripts/optional_models/humc_01_citation_count_prediction_model.R
+#
+# Optional model: HUMC citation count prediction.
+#
+# Purpose:
+#   Fit an exploratory quasi-Poisson model predicting citation count from
+#   requestor type, request purpose group, and year.
+#
+#   This script is not part of the default reporting workflow. It is intended
+#   for optional modeling, diagnostics, and exploratory interpretation.
+
 library(here)
 library(tidyverse)
 library(broom)
@@ -36,8 +47,10 @@ clear_output_folder(
 )
 
 # Build modeling dataset ------------------------------------------
+# Build request-level modeling dataset from the HUMC analysis object.
+# Purpose flags are collapsed into broader purpose groups for modeling.
 
-model_data <- out$my_data2 %>%
+model_data <- out$humc_request_data %>%
   mutate(
     purpose_group = case_when(
       patient_care == 1 | patient_info == 1 ~ "Clinical",
@@ -50,6 +63,8 @@ model_data <- out$my_data2 %>%
     submitter_type = case_when(
       submitter_type %in% c("Committee", "Unknown") ~ "Other",
       submitter_type == "OtherProvider" ~ "Allied Health Professional",
+      # MedEd is labeled Residents/Fellows for modeling because this legacy flag
+      # represents trainee-related requests.
       submitter_type == "MedEd" ~ "Residents/Fellows",
       TRUE ~ as.character(submitter_type)
     ),
@@ -68,6 +83,7 @@ model_data <- out$my_data2 %>%
   )
 
 # Descriptive checks -----------------------------------------------
+# Check citation-count distribution and overdispersion before modeling.
 
 citation_check <- model_data %>%
   summarize(
@@ -109,6 +125,8 @@ year_summary <- model_data %>%
   )
 
 # Fit quasi-Poisson model ------------------------------------------
+# Quasi-Poisson is used because citation counts are count data and may be
+# overdispersed relative to a standard Poisson model.
 
 model_quasi <- glm(
   citation_count ~ submitter_type + purpose_group + year,
@@ -119,6 +137,7 @@ model_quasi <- glm(
 model_summary <- summary(model_quasi)
 
 # Exportable model results ----------------------------------------
+# Exponentiated coefficients are interpreted as citation-count rate ratios.
 
 model_results <- broom::tidy(
   model_quasi,
@@ -204,6 +223,8 @@ ggsave(
 )
 
 ## Time trends: model predictions + actual yearly means ---------------------
+# Compare model-predicted counts for the reference profile with observed
+# yearly means across all request types.
 
 pred_year <- tibble(
   year = levels(model_data$year)
@@ -296,6 +317,7 @@ ggsave(
 )
 
 ## Add reference rows so they appear in forest plot -------------------------
+# Add reference groups manually so they appear in the forest plot.
 
 reference_rows <- tibble(
   term = c(
@@ -570,6 +592,8 @@ gtsave(
 )
 
 # Pairwise comparisons using emmeans ---------------------------------------
+# Pairwise comparisons estimate adjusted rate ratios between requestor or
+# purpose groups while holding other model terms constant.
 
 ## --- Requestor comparisons ------------------------------------------------
 
@@ -594,8 +618,6 @@ requestor_raw <- as.data.frame(
 ) %>%
   rename_with(~ str_replace_all(.x, "\\.", "_")) %>%
   rename_with(~ str_replace_all(.x, " ", "_"))
-
-names(requestor_raw)
 
 requestor_results <- requestor_raw %>%
   mutate(

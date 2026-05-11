@@ -1,4 +1,4 @@
-# scripts/humc/02_generate_tables.R
+# scripts/humc/02_generate_humc_tables.R
 #
 # Generate HUMC analysis tables.
 #
@@ -69,28 +69,32 @@ out <- readRDS(out_path)
 
 # Local analysis helpers ---------------------------------------------------
 
+# Refresh summary tables from the saved HUMC analysis object instead of
+# recalculating the full text-processing pipeline.
 refresh_top_lemmas <- function(out, top_n = 300) {
-  out$data_norm %>%
+  out$lemma_records %>%
     count(lemma, sort = TRUE) %>%
     slice_head(n = top_n)
 }
 
 refresh_lemmas_to_categorize <- function(out, top_n = 300) {
-  out$data_norm %>%
+  out$lemma_records %>%
     count(lemma, sort = TRUE) %>%
     anti_join(out$categories_map, by = "lemma") %>%
     slice_head(n = top_n)
 }
 
+# Refresh summary tables from the saved HUMC analysis object instead of
+# recalculating the full text-processing pipeline.
 refresh_category_purpose <- function(out) {
-  category_by_purpose <- out$data_norm %>%
+  category_by_purpose <- out$lemma_records %>%
     filter(!is.na(category)) %>%
     distinct(request_id, category) %>%
     left_join(out$purpose_long, by = "request_id", relationship = "many-to-many") %>%
     filter(!is.na(purpose)) %>%
     count(purpose, category, sort = TRUE)
   
-  category_by_person_purpose <- out$data_norm %>%
+  category_by_person_purpose <- out$lemma_records %>%
     filter(!is.na(category)) %>%
     distinct(request_id, submitter_type, category) %>%
     left_join(out$purpose_long, by = "request_id", relationship = "many-to-many") %>%
@@ -103,6 +107,7 @@ refresh_category_purpose <- function(out) {
   )
 }
 
+# Summarize citation counts by topic category and request purpose.
 refresh_citation_summaries <- function(out) {
   purpose_cols <- c(
     "continuing_education",
@@ -118,7 +123,7 @@ refresh_citation_summaries <- function(out) {
     "patient_info"
   )
   
-  request_category_citations <- out$data_norm %>%
+  request_category_citations <- out$lemma_records %>%
     filter(!is.na(category)) %>%
     distinct(request_id, category, citation_count)
   
@@ -138,7 +143,7 @@ refresh_citation_summaries <- function(out) {
       )
     )
   
-  citation_by_purpose <- out$my_data2 %>%
+  citation_by_purpose <- out$humc_request_data %>%
     dplyr::select(request_id, citation_count, all_of(purpose_cols)) %>%
     pivot_longer(
       cols = all_of(purpose_cols),
@@ -175,6 +180,8 @@ refresh_citation_summaries <- function(out) {
   )
 }
 
+# Run chi-squared tests safely and return standardized residuals plus
+# Cramer's V effect size.
 safe_chisq_analysis <- function(table_matrix) {
   if (nrow(table_matrix) < 2 || ncol(table_matrix) < 2 || sum(table_matrix) == 0) {
     return(list(
@@ -209,6 +216,7 @@ safe_chisq_analysis <- function(table_matrix) {
   )
 }
 
+# Format chi-squared results for workbook export and HTML display.
 format_chi_square_summary <- function(chi_result, cramers_v, analysis_name) {
   if (length(chi_result) == 1 && is.na(chi_result)) {
     return(tibble(
@@ -236,7 +244,7 @@ format_chi_square_summary <- function(chi_result, cramers_v, analysis_name) {
       ),
       cramers_v = round(cramers_v, 3)
     ) %>%
-    select(
+    dplyr::select(
       analysis,
       chi_square,
       df,
@@ -245,8 +253,9 @@ format_chi_square_summary <- function(chi_result, cramers_v, analysis_name) {
     )
 }
 
+# Test whether categorized research topics vary by submitter type.
 refresh_category_chi <- function(out) {
-  data_norm_chi <- out$data_norm %>%
+  lemma_records_chi <- out$lemma_records %>%
     mutate(
       submitter_type_chi = case_when(
         submitter_type == "Committee" ~ "OtherProvider",
@@ -254,11 +263,11 @@ refresh_category_chi <- function(out) {
       )
     )
   
-  submitter_counts <- out$data_norm %>%
+  submitter_counts <- out$lemma_records %>%
     distinct(request_id, submitter_type) %>%
     count(submitter_type)
   
-  chi_table <- data_norm_chi %>%
+  chi_table <- lemma_records_chi %>%
     filter(!is.na(category)) %>%
     distinct(request_id, submitter_type_chi, category) %>%
     count(submitter_type_chi, category) %>%
@@ -299,8 +308,9 @@ refresh_category_chi <- function(out) {
   )
 }
 
+# Test whether request purposes vary by submitter type.
 refresh_purpose_analysis <- function(out) {
-  my_data2_purpose <- out$my_data2 %>%
+  humc_request_data_purpose <- out$humc_request_data %>%
     mutate(
       submitter_type = if_else(
         submitter_type == "Committee",
@@ -314,7 +324,7 @@ refresh_purpose_analysis <- function(out) {
   
   purpose_by_person <- out$purpose_long %>%
     left_join(
-      my_data2_purpose %>% dplyr::select(request_id, submitter_type),
+      humc_request_data_purpose %>% dplyr::select(request_id, submitter_type),
       by = "request_id"
     ) %>%
     count(submitter_type, purpose, sort = TRUE)
@@ -397,6 +407,8 @@ chi_square_summary <- bind_rows(
   purpose_chi_summary
 )
 
+# Save a small formatted HTML table for the final write-up.
+# The write-up only uses the purpose-by-submitter test.
 chi_square_summary_gt <- chi_square_summary %>%
   filter(analysis == "Request Purpose by Submitter Type") %>%
   gt() %>%
@@ -427,37 +439,14 @@ saveRDS(category_chi_results, file.path(csv_dir, "category_chi_results.rds"))
 saveRDS(purpose_results, file.path(csv_dir, "purpose_results.rds"))
 
 # Optional CSV/RDS exports -------------------------------------------------
-#
-# Leave export_csvs as FALSE for normal use. Set it to TRUE only if you need
-# separate CSV files for debugging or sharing individual tables.
 
 if (export_csvs) {
-  write_pretty_csv(lemmas_to_categorize, "lemmas_to_categorize", csv_dir)
-  write_pretty_csv(top_lemmas, "top_lemmas", csv_dir)
-  write_pretty_csv(out$top_500_lemmas, "top_500_lemmas", csv_dir)
-  write_pretty_csv(out$lemma_counts, "lemma_counts", csv_dir)
-  write_pretty_csv(out$lemma_counts_by_person, "lemma_counts_by_submitter", csv_dir)
-  write_pretty_csv(out$category_counts, "category_counts", csv_dir)
-  write_pretty_csv(out$category_by_person, "category_by_submitter", csv_dir)
-  write_pretty_csv(cat_purp$category_by_purpose, "category_by_purpose", csv_dir)
-  write_pretty_csv(cat_purp$category_by_person_purpose, "category_by_submitter_purpose", csv_dir)
-  write_pretty_csv(citation_results$citation_by_category, "citation_by_category", csv_dir)
-  write_pretty_csv(citation_results$citation_by_purpose, "citation_by_purpose", csv_dir)
-  write_pretty_csv(category_chi_results$submitter_counts, "submitter_counts", csv_dir)
-  write_pretty_csv(category_chi_results$chi_residuals, "category_chi_residuals", csv_dir)
-  write_pretty_csv(purpose_results$purpose_counts, "purpose_counts", csv_dir)
-  write_pretty_csv(purpose_results$purpose_by_person, "purpose_by_submitter", csv_dir)
-  write_pretty_csv(purpose_results$purpose_residuals, "purpose_chi_residuals", csv_dir)
-  write_pretty_csv(phrase_results$phrase_candidates, "pmi_phrase_candidates", csv_dir)
-  write_pretty_csv(phrase_results$phrases_to_add, "phrases_to_add", csv_dir)
-  write_pretty_csv(out$bigram_candidates, "bigram_candidates", csv_dir)
-  write_pretty_csv(out$trigram_candidates, "trigram_candidates", csv_dir)
-  
   saveRDS(lemmas_to_categorize, file.path(csv_dir, "lemmas_to_categorize.rds"))
   saveRDS(citation_results, file.path(csv_dir, "citation_results.rds"))
   saveRDS(phrase_results, file.path(csv_dir, "phrase_results.rds"))
   saveRDS(top_lemmas, file.path(csv_dir, "top_lemmas.rds"))
 }
+
 
 # Create summary workbook --------------------------------------------------
 

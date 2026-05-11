@@ -1,5 +1,19 @@
-# Optional model: Effort level by requestor role ----------------------------
-# This script does not run automatically in the main project pipeline.
+# scripts/optional_models/hmh_02_effort_level_by_requestor_model.R
+#
+# Optional model: HMH literature search effort by requestor role.
+#
+# Purpose:
+#   Explore whether reported literature search effort levels vary by
+#   requestor group in the 2026 HMH shared-form data.
+#
+#   This script creates descriptive workload summaries, an ordinal logistic
+#   regression model, chi-squared diagnostics, and workload-share figures.
+#
+# Interpret group-level estimates cautiously because some requestor categories
+# have small sample sizes.
+#
+# Output:
+#   outputs/optional_models/hmh_02_effort_level_by_requestor_model/
 
 library(tidyverse)
 library(here)
@@ -32,10 +46,12 @@ clear_output_folder(
 
 # Load HMH data -------------------------------------------------------------
 
-hmh_dat <- read_csv(here("data", "raw", "hmh.csv")) %>%
+hmh_dat <- read_csv(hmh_raw_csv_path, show_col_types = FALSE) %>%
   clean_names()
 
 # Prepare modeling data -----------------------------------------------------
+# Prepare 2026 literature search records with valid reported time-spent values.
+# Effort level is ordered from low to high reported librarian time.
 
 model_dat <- hmh_dat %>%
   filter(select_question_request_type == "Literature Search") %>%
@@ -158,6 +174,9 @@ write_pretty_csv(
 )
 
 # Model ---------------------------------------------------------------------
+# Ordinal logistic regression treats effort level as an ordered outcome.
+# This exploratory model estimates whether requestor group is associated
+# with higher reported effort.
 
 effort_model <- MASS::polr(
   effort_level ~ requestor_group,
@@ -386,6 +405,8 @@ ggsave(
 )
 
 # Add estimated hours -------------------------------------------------------
+# Approximate hours are midpoint-style estimates used only to compare workload
+# share across requestor groups.
 
 model_dat_hours <- model_dat %>%
   mutate(
@@ -395,6 +416,18 @@ model_dat_hours <- model_dat %>%
       effort_level == "High time" ~ 6
     )
   )
+
+# Estimated librarian workload by requestor role ----------------------------
+
+workload_hours <- model_dat_hours %>%
+  group_by(requestor_group) %>%
+  summarize(
+    total_estimated_hours = sum(estimated_hours, na.rm = TRUE),
+    n_requests = n(),
+    mean_hours_per_request = mean(estimated_hours, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_estimated_hours))
 
 # Contingency table ---------------------------------------------------------
 
@@ -420,7 +453,7 @@ chi_summary <- tibble(
 
 write_pretty_csv(
   chi_summary,
-  "chi_squared_effort_by_requestor.csv",
+  "chi_squared_effort_by_requestor",
   tables_dir
 )
 
@@ -436,7 +469,7 @@ chi_residuals <- as.data.frame(chi_result$stdres) %>%
 
 write_pretty_csv(
   chi_residuals,
-  "chi_squared_standardized_residuals.csv",
+  "chi_squared_standardized_residuals",
   tables_dir
 )
 
@@ -486,15 +519,11 @@ ggsave(
 )
 
 # Request share vs workload share -------------------------------------------
+# Compare each group's share of request volume with its share of estimated
+# librarian time. A ratio above 1 indicates higher workload than expected
+# based on request count alone.
 
-request_vs_workload <- model_dat %>%
-  mutate(
-    estimated_hours = case_when(
-      effort_level == "Low time" ~ 1.5,
-      effort_level == "Medium time" ~ 3.5,
-      effort_level == "High time" ~ 6
-    )
-  ) %>%
+request_vs_workload <- model_dat_hours %>%
   group_by(requestor_group) %>%
   summarize(
     n_requests = n(),
@@ -504,17 +533,14 @@ request_vs_workload <- model_dat %>%
   mutate(
     request_percent = n_requests / sum(n_requests),
     workload_percent = total_hours / sum(total_hours),
-    
     workload_ratio = workload_percent / request_percent,
-    
-    percent_difference =
-      (workload_percent - request_percent) * 100
+    percent_difference = (workload_percent - request_percent) * 100
   ) %>%
   arrange(desc(workload_ratio))
 
 write_pretty_csv(
   request_vs_workload,
-  "request_vs_workload_summary.csv",
+  "request_vs_workload_summary",
   tables_dir
 )
 

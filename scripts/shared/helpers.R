@@ -36,3 +36,13 @@ clean_blank <- function(x) {
   x_squished[x_squished %in% c("", "NA", "N/A", "NULL", "null", "n/a")] <- NA_character_
   x_squished
 }
+
+#' Standardize common requestor/submitter labels across HUMC and HMH analyses.
+clean_submitter_label <- function(x) {
+  dplyr::case_when(
+    x == "MedEd" ~ "Resident",
+    x %in% c("OtherProvider", "AlliedHealthProfessional") ~
+      "Allied Health Professional",
+    TRUE ~ x
+  )
+}

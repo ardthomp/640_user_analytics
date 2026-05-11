@@ -4,8 +4,11 @@
 #
 # Purpose:
 #   Load data/processed/hmh_network_analysis_data.rds and generate overall
-#   network utilization tables and figures for harmonized 2025+ literature
-#   search request data.
+#   utilization tables and figures for harmonized HMH network literature
+#   search request data from 2025 onward.
+#
+# This script uses the processed HMH network RDS created upstream.
+# It does not rebuild or clean raw data.
 #
 # Run after:
 #   source("scripts/hmh/00_build_hmh_network_dataset.R")
@@ -51,6 +54,9 @@ overall_summary_path <- file.path(paths$output_dir, "hmh_overall_request_summary
 
 # Data checks ---------------------------------------------------------------
 
+# Internal QA tables used to check that campus and requestor labels
+# harmonized correctly across HUMC legacy and HMH shared-form records.
+
 campus_check <- network_dat %>%
   count(source_file_type, source_label, campus_affiliation_raw,
         campus_affiliation_clean, campus_affiliation_detail,
@@ -62,6 +68,9 @@ requestor_check <- network_dat %>%
   arrange(source_file_type, desc(n))
 
 # Overall utilization tables ------------------------------------------------
+
+# Overall utilization summaries for the harmonized HMH network literature
+# search dataset.
 
 requests_over_time <- network_dat %>%
   count(year_month, plot_group, name = "n_requests")
@@ -124,6 +133,9 @@ searches_by_year <- network_dat %>%
 
 # Matched-month comparison --------------------------------------------------
 
+# Use the penultimate observed 2026 month so incomplete current-month data
+# does not distort the matched-month comparison.
+
 penultimate_month_2026 <- network_dat %>%
   filter(year == 2026) %>%
   distinct(month_num) %>%
@@ -182,6 +194,7 @@ if (export_csvs) {
 }
 
 # Figures ------------------------------------------------------------------
+# Figures used in the final write-up
 
 p_over_time <- requests_over_time %>%
   ggplot(aes(x = year_month, y = n_requests, color = plot_group, group = plot_group)) +
@@ -190,7 +203,7 @@ p_over_time <- requests_over_time %>%
   scale_y_continuous(limits = c(0, NA)) +
   labs(
     title = "HMH Network Literature Search Requests Over Time, 2025–Present",
-    subtitle = "2025 includes HUMC legacy-form records plus other HMH shared-form records; 2026+ reflects the unified shared form.",
+    subtitle = "2025 includes transition-period records; 2026 reflects the unified shared form.",
     x = "Month",
     y = "Number of Requests",
     color = "Campus / Form Source"

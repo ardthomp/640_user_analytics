@@ -30,7 +30,7 @@ source(here("scripts", "shared", "plotting_helpers.R"))
 paths <- make_output_paths(file.path("hmh", "text_topics"))
 network_rds_path <- here("data", "processed", "hmh_network_analysis_data.rds")
 
-export_csvs <- TRUE
+export_csvs <- FALSE
 export_workbook <- TRUE
 
 if (!file.exists(network_rds_path)) {
@@ -41,6 +41,7 @@ clear_output_folder(paths$csv_dir, "\\.csv$")
 clear_output_folder(paths$figures_dir, "\\.(png|jpg|jpeg|pdf)$")
 clear_output_folder(paths$output_dir, "^hmh_text_topic_report\\.xlsx$")
 
+# Load the harmonized HMH network literature search dataset created upstream.
 analysis_data <- readRDS(network_rds_path)
 network_dat <- analysis_data$hmh_network_dat
 phrases_tbl <- read_phrases(phrases_path)
@@ -65,6 +66,8 @@ all_research_topics_full <- network_dat %>%
   ) %>%
   filter(!is.na(research_topic), research_topic != "")
 
+# Normalize free-text research topics before tokenization by standardizing
+# spacing/case and collapsing curated multi-word biomedical phrases.
 topics_normalized <- all_research_topics_full %>%
   mutate(
     research_topic_clean = clean_text(research_topic, preset = "normalize"),
@@ -79,6 +82,8 @@ research_topics_only <- all_research_topics_full %>%
 
 # Lemmatization -------------------------------------------------------------
 
+# Tokenize and lemmatize research topics using a biomedical lexicon first,
+# then fall back to general lemmatization and custom manual merges.
 tidy_lemmas_all <- topics_normalized %>%
   dplyr::select(
     global_request_id,
@@ -111,7 +116,7 @@ tidy_lemmas_all <- topics_normalized %>%
   anti_join(tidytext::stop_words, by = c("lemma" = "word")) %>%
   filter(!str_detect(lemma, "^\\d+$"))
 
-all_lemmas <- tidy_lemmas_all %>%
+unique_lemmas <- tidy_lemmas_all %>%
   distinct(lemma) %>%
   arrange(lemma)
 
@@ -133,6 +138,8 @@ lemma_counts_by_campus <- tidy_lemmas_all %>%
 lemma_counts_by_requestor <- tidy_lemmas_all %>%
   count(requestor_category, lemma, sort = TRUE, name = "n_mentions")
 
+# TF-IDF highlights terms that are disproportionately associated with
+# specific requestor groups or source types.
 lemma_tfidf_by_source <- tidy_lemmas_all %>%
   count(source_file_type, lemma, name = "n") %>%
   bind_tf_idf(term = lemma, document = source_file_type, n = n) %>%
@@ -145,6 +152,9 @@ lemma_tfidf_by_requestor <- tidy_lemmas_all %>%
   arrange(desc(tf_idf))
 
 # Phrase / n-gram candidates ------------------------------------------------
+
+# Generate candidate multi-word phrases that may be useful additions to the
+# curated phrase and custom-merge reference files.
 
 phrases_exclude <- phrases_tbl %>%
   transmute(
@@ -202,7 +212,7 @@ topic_lemma_tables <- list(
   "Topics Normalized" = topics_normalized,
   "All Lemma Records Full" = tidy_lemmas_all,
   "Top 500 Lemmas" = top_500_lemmas,
-  "All Lemmas" = all_lemmas,
+  "Unique Lemmas" = unique_lemmas,
   "Lemma Counts Combined" = lemma_counts_combined,
   "Lemma Counts by Source" = lemma_counts_by_source,
   "Lemma Counts by Campus" = lemma_counts_by_campus,
@@ -239,12 +249,14 @@ ggsave(file.path(paths$figures_dir, "hmh_network_top_lemmas.png"), p_top_lemmas,
 
 # Save RDS -----------------------------------------------------------------
 
+# Save processed text-analysis objects for reuse in downstream analyses
+# without rerunning the full NLP pipeline.
 hmh_text_topic_data <- list(
   research_topics_only = research_topics_only,
   all_research_topics_full = all_research_topics_full,
   topics_normalized = topics_normalized,
   tidy_lemmas_all = tidy_lemmas_all,
-  all_lemmas = all_lemmas,
+  unique_lemmas = unique_lemmas,
   top_500_lemmas = top_500_lemmas,
   lemma_counts_combined = lemma_counts_combined,
   lemma_counts_by_source = lemma_counts_by_source,

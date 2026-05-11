@@ -1,4 +1,8 @@
 # scripts/shared/reference_data_loaders.R
+#
+# Helper functions for loading and standardizing shared text-analysis
+# reference files, including phrase rules, custom lemma merges, and
+# the BioLemmatizer lexicon.
 
 library(readr)
 library(dplyr)
@@ -6,6 +10,7 @@ library(stringr)
 library(stringi)
 library(tibble)
 
+# Load curated multi-word phrases that should be preserved before tokenization.
 read_phrases <- function(path) {
   if (!file.exists(path)) {
     readr::write_csv(tibble(phrase = character()), path)
@@ -27,6 +32,8 @@ read_phrases <- function(path) {
     distinct()
 }
 
+# Replace approved multi-word phrases with underscore-connected versions so
+# they remain intact during tokenization.
 collapse_phrases <- function(text_vec, phrases_tbl) {
   if (nrow(phrases_tbl) == 0) {
     return(as.character(text_vec))
@@ -45,6 +52,7 @@ collapse_phrases <- function(text_vec, phrases_tbl) {
   stringr::str_replace_all(as.character(text_vec), replacement_vec)
 }
 
+# Load manually curated token-to-lemma mappings used after automated lemmatization.
 read_custom_merges <- function(path) {
   if (!file.exists(path)) {
     starter <- tibble(
@@ -84,6 +92,7 @@ read_custom_merges <- function(path) {
     distinct(token, .keep_all = TRUE)
 }
 
+# Load BioLemmatizer lexicon and keep only token-to-lemma mappings needed here.
 read_lex <- function(path) {
   if (!file.exists(path)) {
     stop("Could not find lexicon file: ", path)

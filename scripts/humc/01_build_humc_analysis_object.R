@@ -1,4 +1,6 @@
-# Build HUMC analysis object -----------------------------------------------
+# scripts/humc/01_build_humc_analysis_object.R
+#
+# Build HUMC historical literature search analysis object.
 #
 # Purpose:
 #   Read data/processed/humc.csv and build the reusable analysis object.
@@ -38,10 +40,13 @@ custom_merges_path <- file.path(reference_dir, "custom_merges.csv")
 categories_path <- file.path(reference_dir, "categories_long.xlsx")
 lex_path <- file.path(reference_dir, "lexicon.lex")
 
-coding_path <- file.path(reference_dir, "lemma_coding.csv")
+# Not currently used
+# coding_path <- file.path(reference_dir, "lemma_coding.csv")
 
 out_path <- file.path(output_dir, "out.rds")
 
+# Read the manually curated lemma-to-category mapping file.
+# If the file is unavailable, continue without category joins.
 read_categories <- function(path) {
   if (!file.exists(path)) {
     message("categories_long.xlsx not found. Continuing without categories.")
@@ -61,38 +66,43 @@ read_categories <- function(path) {
     distinct(lemma, .keep_all = TRUE)
 }
 
-read_lemma_coding <- function(path = coding_path) {
-  if (!file.exists(path)) {
-    starter <- tibble(lemma = character(), category = character(), specialty_1 = character(), specialty_2 = character())
-    write_csv(starter, path)
-    message("Created empty lemma_coding.csv. Add coding and rerun.")
-  }
-  read_csv(
-    path,
-    show_col_types = FALSE,
-    col_types = cols(lemma = col_character(), category = col_character(), specialty_1 = col_character(), specialty_2 = col_character()),
-    locale = locale(encoding = "latin1")
-  ) %>%
-    mutate(
-      across(everything(), ~ stringi::stri_enc_toutf8(as.character(.x), validate = TRUE)),
-      across(everything(), ~ str_replace_all(.x, "\uFFFD", "")),
-      lemma = str_to_lower(str_trim(lemma)),
-      category = na_if(str_trim(category), ""),
-      specialty_1 = na_if(str_trim(specialty_1), ""),
-      specialty_2 = na_if(str_trim(specialty_2), "")
-    ) %>%
-    filter(!is.na(lemma), lemma != "") %>%
-    distinct(lemma, .keep_all = TRUE)
+# Optional coding template for manually assigning categories and specialties
+# to lemmas. Not currently used in the main HUMC object build.
+
+#read_lemma_coding <- function(path = coding_path) {
+#  if (!file.exists(path)) {
+#    starter <- tibble(lemma = character(), category = character(), specialty_1 = character(), specialty_2 = character())
+#    write_csv(starter, path)
+#    message("Created empty lemma_coding.csv. Add coding and rerun.")
+#  }
+#  read_csv(
+#    path,
+#    show_col_types = FALSE,
+#    col_types = cols(lemma = col_character(), category = col_character(), specialty_1 = col_character(), specialty_2 = col_character()),
+#    locale = locale(encoding = "latin1")
+#  ) %>%
+#    mutate(
+#      across(everything(), ~ stringi::stri_enc_toutf8(as.character(.x), validate = TRUE)),
+#      across(everything(), ~ str_replace_all(.x, "\uFFFD", "")),
+#      lemma = str_to_lower(str_trim(lemma)),
+#      category = na_if(str_trim(category), ""),
+#      specialty_1 = na_if(str_trim(specialty_1), ""),
+#      specialty_2 = na_if(str_trim(specialty_2), "")
+#    ) %>%
+#    filter(!is.na(lemma), lemma != "") %>%
+#    distinct(lemma, .keep_all = TRUE)
+#}
+
+get_top_lemmas <- function(lemma_records, top_n = 300) {
+  lemma_records %>% count(lemma, sort = TRUE) %>% slice_head(n = top_n)
 }
 
-get_top_lemmas <- function(data_norm, top_n = 300) {
-  data_norm %>% count(lemma, sort = TRUE) %>% slice_head(n = top_n)
-}
-
+# Collapse legacy requestor flags into one submitter type.
+# If multiple flags are present, this priority order is applied.
 standardize_submitter_type <- function(attending, med_ed, nurse, other_provider, committee) {
   case_when(
     nurse == 1 ~ "Nurse",
-    other_provider == 1 ~ "AlliedHealthProfessional",
+    other_provider == 1 ~ "Allied Health Professional",
     attending == 1 ~ "Attending",
     med_ed == 1 ~ "Resident",
     committee == 1 ~ "Committee",
@@ -100,9 +110,11 @@ standardize_submitter_type <- function(attending, med_ed, nurse, other_provider,
   )
 }
 
-make_purpose_long <- function(my_data2) {
+# Convert binary purpose flags into long format so requests can have
+# multiple purposes.
+make_purpose_long <- function(humc_request_data) {
   purpose_cols <- c("continuing_education", "patient_care", "lecture", "ebp", "research", "grant", "publication", "irb_app", "admin", "policy", "patient_info")
-  my_data2 %>%
+  humc_request_data %>%
     dplyr::select(request_id, all_of(purpose_cols)) %>%
     pivot_longer(cols = all_of(purpose_cols), names_to = "purpose", values_to = "flag") %>%
     filter(flag == 1) %>%
@@ -119,6 +131,7 @@ make_purpose_long <- function(my_data2) {
     dplyr::select(request_id, purpose)
 }
 
+# Generate simple bigram/trigram frequency candidates for manual phrase review.
 generate_ngram_candidates <- function(df, n_words = 2, min_n = 3) {
   df %>%
     transmute(Topic = clean_text(as.character(Topic), preset = "topic")) %>%
@@ -130,6 +143,8 @@ generate_ngram_candidates <- function(df, n_words = 2, min_n = 3) {
     filter(n >= min_n)
 }
 
+# Use PMI-style scoring to identify multi-word phrases that occur together
+# more often than expected and may belong in phrases.csv.
 generate_phrase_candidates_pmi <- function(out, min_n = 3) {
   existing_phrases <- read_phrases(phrases_path) %>%
     mutate(phrase_clean = str_replace_all(phrase, " ", "_")) %>%
@@ -152,7 +167,7 @@ generate_phrase_candidates_pmi <- function(out, min_n = 3) {
     unlist() %>%
     unique()
 
-  topic_clean <- out$my_data2 %>%
+  topic_clean <- out$humc_request_data %>%
     transmute(Topic = clean_text(as.character(Topic), preset = "topic"))
   words <- topic_clean %>%
     tidytext::unnest_tokens(word, Topic) %>%
@@ -199,6 +214,8 @@ generate_phrase_candidates_pmi <- function(out, min_n = 3) {
   list(phrase_candidates = phrase_candidates, phrases_to_add = phrases_to_add)
 }
 
+# Main builder: create the reusable HUMC analysis object used by downstream
+# table, figure, and optional modeling scripts.
 build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, categories_path) {
   phrases_tbl <- read_phrases(phrases_path)
   lex_map <- read_lex(lex_path)
@@ -209,7 +226,8 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
   missing_flags <- setdiff(needed_flags, names(my_data))
   if (length(missing_flags) > 0) stop("Missing expected HUMC columns: ", paste(missing_flags, collapse = ", "), ". Re-run 00_build_humc_master_csv.R first.")
 
-  my_data2 <- my_data %>%
+  # Standardize requestor flags, purpose flags, topics, phrases, and citation counts.
+  humc_request_data <- my_data %>%
     mutate(request_id = row_number()) %>%
     mutate(
       across(c(attending, med_ed, nurse, other_provider, committee), flag_to_binary),
@@ -220,13 +238,16 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
       citation_count = suppressWarnings(as.numeric(citation_count))
     )
 
-  purpose_long <- make_purpose_long(my_data2)
-  tidy_clean <- my_data2 %>%
+  purpose_long <- make_purpose_long(humc_request_data)
+  # Tokenize normalized topic text into one row per word.
+  tidy_clean <- humc_request_data %>%
     tidytext::unnest_tokens(word, Topic) %>%
     mutate(word = str_replace_all(word, "[’`]", "'"), word = str_replace_all(word, "\\.", ""), word = str_replace_all(word, "[^a-z'_-]", "")) %>%
     filter(word != "", word != "pre", str_detect(word, "[a-z]"))
 
-  data_norm <- tidy_clean %>%
+  # Apply biomedical lemmatization, fallback lemmatization, custom merges,
+  # stop-word removal, and category joins.
+  lemma_records <- tidy_clean %>%
     left_join(lex_map, by = c("word" = "token")) %>%
     mutate(lemma0 = coalesce(lemma_from_lex, word), lemma1 = if_else(is.na(lemma_from_lex), textstem::lemmatize_words(word), lemma0)) %>%
     left_join(custom_map, by = c("lemma1" = "token")) %>%
@@ -234,14 +255,14 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
     anti_join(tidytext::stop_words, by = c("lemma" = "word")) %>%
     left_join(categories_map, by = "lemma")
 
-  category_by_purpose_request <- data_norm %>%
+  category_by_purpose_request <- lemma_records %>%
     filter(!is.na(category)) %>%
     distinct(request_id, category) %>%
     left_join(purpose_long, by = "request_id", relationship = "many-to-many") %>%
     filter(!is.na(purpose)) %>%
     count(purpose, category, sort = TRUE)
 
-  category_submitter_purpose_req <- data_norm %>%
+  category_submitter_purpose_req <- lemma_records %>%
     filter(!is.na(category)) %>%
     distinct(request_id, submitter_type, category) %>%
     left_join(purpose_long, by = "request_id", relationship = "many-to-many") %>%
@@ -249,22 +270,22 @@ build_outputs <- function(my_data, lex_path, phrases_path, custom_merge_path, ca
     count(submitter_type, purpose, category, sort = TRUE)
 
   out <- list(
-    my_data2 = my_data2,
+    humc_request_data = humc_request_data,
     purpose_long = purpose_long,
     phrases_tbl = phrases_tbl,
     lex_map = lex_map,
     custom_map = custom_map,
     categories_map = categories_map,
-    data_norm = data_norm,
-    lemma_counts = data_norm %>% count(lemma, sort = TRUE),
-    top_500_lemmas = get_top_lemmas(data_norm, top_n = 500),
-    lemma_counts_by_person = data_norm %>% count(submitter_type, lemma, sort = TRUE),
-    category_counts = data_norm %>% filter(!is.na(category)) %>% count(category, sort = TRUE),
-    category_by_person = data_norm %>% filter(!is.na(category)) %>% distinct(request_id, submitter_type, category) %>% count(submitter_type, category, sort = TRUE),
+    lemma_records = lemma_records,
+    lemma_counts = lemma_records %>% count(lemma, sort = TRUE),
+    top_500_lemmas = get_top_lemmas(lemma_records, top_n = 500),
+    lemma_counts_by_person = lemma_records %>% count(submitter_type, lemma, sort = TRUE),
+    category_counts = lemma_records %>% filter(!is.na(category)) %>% count(category, sort = TRUE),
+    category_by_person = lemma_records %>% filter(!is.na(category)) %>% distinct(request_id, submitter_type, category) %>% count(submitter_type, category, sort = TRUE),
     category_by_purpose_request = category_by_purpose_request,
     category_submitter_purpose_req = category_submitter_purpose_req,
-    bigram_candidates = generate_ngram_candidates(my_data2, n_words = 2, min_n = 3),
-    trigram_candidates = generate_ngram_candidates(my_data2, n_words = 3, min_n = 3)
+    bigram_candidates = generate_ngram_candidates(humc_request_data, n_words = 2, min_n = 3),
+    trigram_candidates = generate_ngram_candidates(humc_request_data, n_words = 3, min_n = 3)
   )
   out$phrase_results <- generate_phrase_candidates_pmi(out, min_n = 3)
   out
@@ -275,6 +296,6 @@ my_data <- read_csv(raw_path, show_col_types = FALSE)
 out <- build_outputs(my_data, lex_path, phrases_path, custom_merges_path, categories_path)
 saveRDS(out, out_path)
 message("Saved HUMC analysis object to: ", out_path)
-message("Requests in analysis object: ", nrow(out$my_data2))
+message("Requests in analysis object: ", nrow(out$humc_request_data))
 message("Unique lemmas: ", nrow(out$lemma_counts))
 message("Categorized categories: ", nrow(out$category_counts))

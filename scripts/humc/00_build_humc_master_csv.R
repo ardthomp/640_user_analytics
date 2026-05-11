@@ -103,7 +103,7 @@ make_campus_affiliation <- function(humc, carrier, jfk, palisades, network) {
   )
 }
 
-make_campus_detail <- function(humc, carrier, jfk, palisades, network) {
+make_campus_affiliation_detail <- function(humc, carrier, jfk, palisades, network) {
   campus_list <- c()
 
   if (!is.na(humc) && humc == 1) campus_list <- c(campus_list, "HUMC")
@@ -141,6 +141,9 @@ read_one_search_log <- function(path) {
       "patron_name"
     )))
 
+  # Legacy spreadsheets used inconsistent schemas across years. Ensure all
+  # expected analytical columns exist before harmonization.
+  
   needed_cols <- c(
     "date",
     "topic",
@@ -183,7 +186,8 @@ read_one_search_log <- function(path) {
     raw$date <- purrr::reduce(raw[existing_date_cols], dplyr::coalesce)
   }
 
-  # Older workbooks used inconsistent column names.
+  # Historical workbooks used inconsistent abbreviations and naming conventions.
+  # Standardize equivalent columns before downstream processing.
   if ("attd" %in% names(raw)) raw$attending <- raw$attd
 
   if ("med_ed_5" %in% names(raw)) raw$med_ed <- raw$med_ed_5
@@ -206,6 +210,7 @@ read_one_search_log <- function(path) {
 
   year_from_file <- stringr::str_extract(basename(path), "\\d{4}")
 
+  # Convert heterogeneous workbook structures into one harmonized analytical schema.
   cleaned <- raw %>%
     dplyr::transmute(
       source_file = basename(path),
@@ -215,8 +220,8 @@ read_one_search_log <- function(path) {
       date_raw = as.character(date),
       date = parse_excel_date(date),
 
-      # If the date parses to a year that does not match the workbook year,
-      # treat that parsed date as unreliable.
+      # Some legacy spreadsheets contain malformed Excel serial dates that parse
+      # into incorrect years. Remove parsed dates that disagree with workbook year.
       date = dplyr::if_else(
         !is.na(date) &
           !is.na(as.integer(year_from_file)) &
@@ -226,7 +231,7 @@ read_one_search_log <- function(path) {
       ),
 
       year = as.integer(year_from_file),
-      month = lubridate::floor_date(date, "month"),
+      year_month = lubridate::floor_date(date, "month"),
 
       topic = clean_text_na(topic),
 
@@ -236,6 +241,8 @@ read_one_search_log <- function(path) {
       palisades = flag_to_binary(palisades),
       network = flag_to_binary(network),
 
+      # Multiple campus flags could appear simultaneously in some legacy records.
+      # Create both a primary campus label and a detailed multi-campus field.
       campus_affiliation = purrr::pmap_chr(
         list(humc, carrier, jfk, palisades, network),
         ~ make_campus_affiliation(..1, ..2, ..3, ..4, ..5)
@@ -243,7 +250,7 @@ read_one_search_log <- function(path) {
 
       campus_affiliation_detail = purrr::pmap_chr(
         list(humc, carrier, jfk, palisades, network),
-        ~ make_campus_detail(..1, ..2, ..3, ..4, ..5)
+        ~ make_campus_affiliation_detail(..1, ..2, ..3, ..4, ..5)
       ),
 
       attending = flag_to_binary(attending),
@@ -272,7 +279,7 @@ read_one_search_log <- function(path) {
       policy = flag_to_binary(policy),
       patient_info = flag_to_binary(patient_info)
     ) %>%
-    dplyr::filter(
+    dplyr::filter( # Remove accidental header/month rows carried into some legacy exports.
       !is.na(topic),
       !stringr::str_to_lower(topic) %in% c(
         "topic",
@@ -312,7 +319,7 @@ humc_master <- files %>%
     date_raw,
     date,
     year,
-    month,
+    year_month,
     topic,
     humc,
     carrier,
@@ -323,16 +330,18 @@ humc_master <- files %>%
     campus_affiliation_detail
   )
 
+# QA checks used to identify import problems, inconsistent flag combinations,
+# missing dates/topics, and workbook-year mismatches.
 # Basic checks --------------------------------------------------------------
 
-check_by_file <- humc_master %>%
+import_check_by_file <- humc_master %>%
   dplyr::count(source_file, file_year, year, sort = FALSE)
 
-check_missing_dates <- humc_master %>%
+import_check_missing_dates <- humc_master %>%
   dplyr::filter(is.na(date)) %>%
   dplyr::count(source_file, file_year, year, sort = TRUE)
 
-check_missing_topics <- humc_master %>%
+import_check_missing_topics <- humc_master %>%
   dplyr::filter(is.na(topic)) %>%
   dplyr::count(source_file, file_year, year, sort = TRUE)
 
@@ -391,9 +400,9 @@ check_purpose_flags <- humc_master %>%
 
 readr::write_csv(humc_master, output_path)
 
-readr::write_csv(check_by_file, file.path(processed_dir, "humc_import_check_by_file.csv"))
-readr::write_csv(check_missing_dates, file.path(processed_dir, "humc_missing_dates.csv"))
-readr::write_csv(check_missing_topics, file.path(processed_dir, "humc_missing_topics.csv"))
+readr::write_csv(import_check_by_file, file.path(processed_dir, "humc_import_check_by_file.csv"))
+readr::write_csv(import_check_missing_dates, file.path(processed_dir, "humc_missing_dates.csv"))
+readr::write_csv(import_check_missing_topics, file.path(processed_dir, "humc_missing_topics.csv"))
 readr::write_csv(check_year_mismatch, file.path(processed_dir, "humc_year_mismatch.csv"))
 readr::write_csv(check_campus_flags, file.path(processed_dir, "humc_campus_flag_check.csv"))
 readr::write_csv(check_requestor_flags, file.path(processed_dir, "humc_requestor_flag_check.csv"))
@@ -406,13 +415,13 @@ message("Rows in master file: ", nrow(humc_master))
 message("Files combined: ", length(files))
 
 message("\nRows by file/year:")
-print(check_by_file)
+print(import_check_by_file)
 
 message("\nCampus flag check:")
 print(check_campus_flags)
 
 message("\nRows with missing dates:")
-print(check_missing_dates)
+print(import_check_missing_dates)
 
 message("\nRows with year mismatch:")
 print(check_year_mismatch)

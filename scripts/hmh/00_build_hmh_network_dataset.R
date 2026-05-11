@@ -1,6 +1,6 @@
 # scripts/hmh/00_build_hmh_network_dataset.R
 #
-# Build the HMH network literature search analysis dataset.
+# Build the HMH network analysis dataset.
 #
 # Purpose:
 #   1. Read HUMC legacy-form data and HMH shared-form data.
@@ -30,10 +30,12 @@ source(here("scripts", "shared", "output_helpers.R"))
 source(here("scripts", "shared", "reference_data_loaders.R"))
 
 # Settings -----------------------------------------------------------------
+# This workflow intentionally uses 2025–2026 only because it builds the
+# HMH network dataset, not the full HUMC historical dataset.
 
 analysis_years <- c(2025, 2026)
 
-paths <- make_output_paths(file.path("hmh", "text_topics"))
+text_inventory_paths <- make_output_paths(file.path("hmh", "text_topics"))
 
 hmh_network_rds_path <- here("data", "processed", "hmh_network_analysis_data.rds")
 
@@ -43,10 +45,10 @@ if (!dir.exists(dirname(hmh_network_rds_path))) {
 
 # Export settings ----------------------------------------------------------
 
-export_text_inventory_csvs <- FALSE
+export_text_inventory_csvs <- TRUE
 
 if (export_text_inventory_csvs) {
-  clear_output_folder(paths$csv_dir, "\\.csv$")
+  clear_output_folder(text_inventory_paths$csv_dir, "\\.csv$")
 }
 
 # Compatibility helpers ----------------------------------------------------
@@ -109,7 +111,7 @@ standardize_requestor_name <- function(x) {
     ) ~ "Nurse Practitioner/PA",
     str_detect(x_lower, "attending|physician|doctor|md|do") ~ "Physician",
     str_detect(x_lower, "nurse|\\brn\\b") ~ "Nursing",
-    str_detect(x_lower, "social work|therapy|pharmacy|diet|rehab|pt|ot|slp|allied") ~ "Allied Health",
+    str_detect(x_lower, "social work|therapy|pharmacy|diet|rehab|pt|ot|slp|allied") ~ "Allied Health Professional",
     str_detect(x_lower, "patient|family|consumer") ~ "Consumer",
     str_detect(x_lower, "committee") ~ "Committee",
     TRUE ~ x_original
@@ -230,6 +232,8 @@ custom_map <- read_custom_merges(custom_merges_path)
 lex_map <- read_lex(lex_path)
 
 # Import HUMC legacy data ---------------------------------------------------
+# HUMC rows are included only for the transition period so they can be
+# compared with newer HMH shared-form records.
 
 humc_raw <- readr::read_csv(humc_path, show_col_types = FALSE) %>%
   janitor::clean_names()
@@ -251,7 +255,7 @@ humc_dat <- humc_raw %>%
     year = year(submitted_date),
     month = month(submitted_date, label = TRUE, abbr = TRUE),
     month_num = month(submitted_date),
-    year_month = floor_date(submitted_date, "month"),
+    year_month = as.Date(floor_date(submitted_at, "month")),
     week = floor_date(submitted_date, unit = "week", week_start = 1),
     weekday = wday(submitted_date, label = TRUE, abbr = FALSE),
     hour = NA_integer_,
@@ -340,7 +344,7 @@ humc_dat <- humc_raw %>%
 
 # Import HMH shared-form literature search data -----------------------------
 
-hmh_raw <- readr::read_csv(hmh_path, show_col_types = FALSE) %>%
+hmh_raw <- readr::read_csv(hmh_raw_csv_path, show_col_types = FALSE) %>%
   janitor::clean_names()
 
 hmh_dat <- hmh_raw %>%
@@ -361,7 +365,7 @@ hmh_dat <- hmh_raw %>%
     year = year(submitted_at),
     month = month(submitted_at, label = TRUE, abbr = TRUE),
     month_num = month(submitted_at),
-    year_month = floor_date(submitted_at, "month"),
+    year_month = as.Date(floor_date(submitted_at, "month")),
     week = floor_date(submitted_at, unit = "week", week_start = 1),
     weekday = wday(submitted_at, label = TRUE, abbr = FALSE),
     hour = hour(submitted_at),
@@ -441,7 +445,7 @@ hmh_network_dat <- bind_rows(humc_dat, hmh_dat) %>%
     requestor_category = standardize_requestor_name(requestor_category),
 
     requestor_category = case_when(
-      year == 2026 & requestor_category == "Physical Therapist" ~ "Allied Health",
+      year == 2026 & requestor_category == "Physical Therapist" ~ "Allied Health Professional",
       TRUE ~ requestor_category
     ),
     plot_group = case_when(
@@ -452,6 +456,9 @@ hmh_network_dat <- bind_rows(humc_dat, hmh_dat) %>%
     )
   ) %>%
   relocate(request_id, global_request_id)
+
+# Keep a separate shared-form subset for analyses that require fields
+# available only in the newer HMH form.
 
 hmh_shared_form_dat <- hmh_network_dat %>%
   filter(source_file_type == "hmh")
@@ -584,6 +591,9 @@ lemma_counts_by_requestor <- tidy_lemmas_all %>%
   count(requestor_category, lemma, sort = TRUE, name = "n_mentions")
 
 # Phrase/lemma candidates --------------------------------------------------
+# Candidate phrases are generated for manual review only. Approved terms
+# should be added to phrases.csv or custom_merges.csv and then the pipeline
+# should be rerun.
 
 phrases_exclude <- phrases_tbl %>%
   transmute(
@@ -632,7 +642,7 @@ candidate_trigrams <- phrase_candidate_tokens %>%
   count(ngram, sort = TRUE, name = "n") %>%
   mutate(type = "trigram")
 
-phrase_lemma_candidates <- bind_rows(
+phrase_candidates <- bind_rows(
   candidate_bigrams,
   candidate_trigrams
 ) %>%
@@ -643,22 +653,22 @@ phrase_lemma_candidates <- bind_rows(
 # Optional text inventory CSV exports --------------------------------------
 
 if (export_text_inventory_csvs) {
-  write_pretty_csv(all_research_topics_full, "all_research_topics_full", paths$csv_dir)
+  write_pretty_csv(all_research_topics_full, "all_research_topics_full", text_inventory_paths$csv_dir)
   
   write_pretty_csv(
     all_research_topics_full %>%
       count(research_topic, sort = TRUE, name = "n_records"),
     "all_research_topics_counts",
-    paths$csv_dir)
+    text_inventory_paths$csv_dir)
   
   
-  write_pretty_csv(tidy_lemmas_all, "all_lemma_records_full", paths$csv_dir)
-  write_pretty_csv(all_lemmas, "all_lemmas", paths$csv_dir)
-  write_pretty_csv(top_500_lemmas, "top_500_lemmas", paths$csv_dir)
-  write_pretty_csv(lemma_counts_by_source, "lemma_counts_by_source", paths$csv_dir)
-  write_pretty_csv(lemma_counts_by_campus, "lemma_counts_by_campus", paths$csv_dir)
-  write_pretty_csv(lemma_counts_by_requestor, "lemma_counts_by_requestor", paths$csv_dir)
-  write_pretty_csv(phrase_lemma_candidates, "phrase_lemma_candidates", paths$csv_dir)
+  write_pretty_csv(tidy_lemmas_all, "all_lemma_records_full", text_inventory_paths$csv_dir)
+  write_pretty_csv(all_lemmas, "all_lemmas", text_inventory_paths$csv_dir)
+  write_pretty_csv(top_500_lemmas, "top_500_lemmas", text_inventory_paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_source, "lemma_counts_by_source", text_inventory_paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_campus, "lemma_counts_by_campus", text_inventory_paths$csv_dir)
+  write_pretty_csv(lemma_counts_by_requestor, "lemma_counts_by_requestor", text_inventory_paths$csv_dir)
+  write_pretty_csv(phrase_candidates, "phrase_candidates", text_inventory_paths$csv_dir)
 }
 
 # Save final object for report script --------------------------------------
@@ -677,7 +687,7 @@ hmh_network_analysis_data <- list(
   lemma_counts_by_source = lemma_counts_by_source,
   lemma_counts_by_campus = lemma_counts_by_campus,
   lemma_counts_by_requestor = lemma_counts_by_requestor,
-  phrase_lemma_candidates = phrase_lemma_candidates,
+  phrase_candidates = phrase_candidates,
   reference = list(
     phrases_tbl = phrases_tbl,
     custom_map = custom_map,
@@ -701,10 +711,10 @@ cat("Purpose rows:", nrow(hmh_tidy_purposes), "\n")
 cat("Research topic records:", nrow(all_research_topics_full), "\n")
 cat("Lemma records:", nrow(tidy_lemmas_all), "\n")
 cat("Unique lemmas:", n_distinct(tidy_lemmas_all$lemma), "\n")
-cat("Phrase/lemma candidates:", nrow(phrase_lemma_candidates), "\n")
+cat("Phrase/lemma candidates:", nrow(phrase_candidates), "\n")
 
 if (export_text_inventory_csvs) {
-  cat("Text inventory CSVs written to:", paths$csv_dir, "\n")
+  cat("Text inventory CSVs written to:", text_inventory_paths$csv_dir, "\n")
 } else {
   cat("Text inventory CSV export skipped. Set export_text_inventory_csvs <- TRUE to write CSVs.\n")
 }

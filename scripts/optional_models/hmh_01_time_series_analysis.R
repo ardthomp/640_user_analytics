@@ -1,9 +1,14 @@
 # Optional analysis: HMH network time series and seasonality patterns --------
-# This script is exploratory and does not run automatically in the main pipeline.
+# This optional script uses the harmonized HMH network request data to explore
+# seasonal and longitudinal patterns. It is not part of the default pipeline.
 # Goal:
 #   1. Look for seasonal patterns in request volume
 #   2. See whether requestor groups vary by time of year
 #   3. See whether certain lemmas become more/less common by month
+#
+# Because the HMH network dataset currently covers a limited time window,
+# these outputs should be interpreted as exploratory rather than definitive
+# evidence of seasonality.
 #
 # Output:
 #   outputs/optional_models/hmh_01_time_series_analysis/
@@ -63,15 +68,25 @@ if ("hmh_network_dat" %in% names(hmh_network_objects)) {
   stop("The HMH network RDS does not contain an object named hmh_network_dat.")
 }
 
-# # Pull lemma-level data from the harmonized HMH network analysis object.
+# Pull lemma-level data from the harmonized HMH network analysis object.
 # If not, the script will skip lemma seasonality and still run the volume and
 # requestor-group sections.
 
-if ("tidy_lemmas_all" %in% names(hmh_network_objects)) {
-  tidy_lemmas_all <- hmh_network_objects$tidy_lemmas_all
+hmh_text_topic_rds_path <- here(
+  "data",
+  "processed",
+  "hmh_text_topic_data.rds"
+)
+
+if (file.exists(hmh_text_topic_rds_path)) {
+  hmh_text_topic_objects <- readRDS(hmh_text_topic_rds_path)
+  tidy_lemmas_all <- hmh_text_topic_objects$tidy_lemmas_all
 } else {
   tidy_lemmas_all <- NULL
-  message("No tidy_lemmas_all object found. Lemma seasonality section will be skipped.")
+  message(
+    "No hmh_text_topic_data.rds object found. ",
+    "Run scripts/hmh/04_analyze_hmh_text_topics.R to include lemma seasonality."
+  )
 }
 
 # Prepare base time variables ----------------------------------------------
@@ -83,7 +98,7 @@ hmh_network_ts <- hmh_network_dat %>%
   clean_names() %>%
   mutate(
     submitted_date = as.Date(submitted_date),
-    year_month = floor_date(submitted_date, unit = "month"),
+    year_month = as.Date(floor_date(submitted_date, unit = "month")),
     year = year(submitted_date),
     month_num = month(submitted_date),
     month = month(submitted_date, label = TRUE, abbr = TRUE),
@@ -147,6 +162,7 @@ monthly_requests <- hmh_network_ts %>%
   filter(!is.na(year_month)) %>%
   count(year_month)
 
+# Collapse requests across years to estimate average demand by calendar month.
 monthly_requests_summary <- monthly_requests %>%
   mutate(
     month_num = lubridate::month(year_month),
@@ -504,6 +520,8 @@ if (nrow(monthly_complete) >= 24) {
   
   request_stl <- stl(request_ts, s.window = "periodic")
   
+  # STL decomposition separates observed monthly volume into trend, seasonal,
+  # and remainder components.
   stl_components <- tibble(
     year_month = monthly_complete$year_month,
     observed = as.numeric(request_stl$time.series[, "remainder"] +
@@ -554,10 +572,8 @@ if (nrow(monthly_complete) >= 24) {
 }
 
 # Lemma seasonality ---------------------------------------------------------
-# This section uses tidy_lemmas_all if available. It asks:
-#   Which research topics/terms are more common in specific months?
-#
-# Important: this is not sentiment analysis. It is topic timing.
+# Optional text-timing analysis: examine whether common research topic lemmas
+# appear more often in particular months or periods.
 
 if (!is.null(tidy_lemmas_all)) {
   
