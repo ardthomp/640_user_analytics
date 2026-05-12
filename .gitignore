@@ -28,7 +28,7 @@ docs/session_info.txt
 *.jpeg
 *.pdf
 *.html
-!640_final_project_writeup.html
+!628_writeup.html
 !640_writeup.html
 *.qmd
 *.docx
@@ -39,5 +39,6 @@ notes.txt
 project_structure.txt
 /640_final_project_writeup_files/
 /628_final_project_writeup_files/
+encrypted/
 
 
